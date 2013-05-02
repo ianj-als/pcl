@@ -55,10 +55,10 @@ class FirstPassResolverVisitor(ResolverVisitor):
                  pcl_import_path = []):
         ResolverVisitor.__init__(self)
         self.__resolver_factory = resolver_factory
+        self.__pcl_import_paths = list()
         if pcl_import_path:
-            self.__pcl_import_paths = pcl_import_path.split(";")
-        else:
-            self.__pcl_import_paths = ["."]
+            self.__pcl_import_paths.extend(pcl_import_path.split(";"))
+        self.__pcl_import_paths.append(".")
         sys.path.extend(self.__pcl_import_paths)
 
     @staticmethod
@@ -185,6 +185,11 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                          'configure',
                                                          'initialise'])
             except Exception as ie:
+                print "ERROR: %s at line %d, error importing module %s: %s" % \
+                      (an_import.filename,
+                       an_import.lineno,
+                       an_import.module_name,
+                       str(ie))
                 self._errors.append("ERROR: %s at line %d, error importing module %s: %s" % \
                                     (an_import.filename,
                                      an_import.lineno,
@@ -197,7 +202,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
                 try:
                     get_inputs_fn = getattr(imported_module, 'get_inputs')
                 except AttributeError:
-                    get_inputs_fn = lambda _: []
+                    get_inputs_fn = lambda : []
                     self._errors.append("ERROR: %s at line %d, imported Python module %s " \
                                         "does not define get_inputs function" % \
                                         (an_import.filename, an_import.lineno,
@@ -205,7 +210,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
                 try:
                     get_outputs_fn = getattr(imported_module, 'get_outputs')
                 except AttributeError:
-                    get_outputs_fn = lambda _: []
+                    get_outputs_fn = lambda : []
                     self._errors.append("ERROR: %s at line %d, imported Python module %s " \
                                         "does not define get_outputs function" % \
                                         (an_import.filename, an_import.lineno,
@@ -213,7 +218,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
                 try:
                     get_configuration_fn = getattr(imported_module, 'get_configuration')
                 except AttributeError:
-                    get_configuration_fn = lambda _: []
+                    get_configuration_fn = lambda : []
                     self._errors.append("ERROR: %s at line %d, imported Python module %s " \
                                         "does not define get_configuration function" % \
                                         (an_import.filename, an_import.lineno,
@@ -221,7 +226,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
                 try:
                     configure_fn = getattr(imported_module, 'configure')
                 except AttributeError:
-                    configure_fn = lambda _: None
                     self._errors.append("ERROR: %s at line %d, imported Python module %s " \
                                         "does not define configure function" % \
                                         (an_import.filename, an_import.lineno,
@@ -229,7 +233,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
                 try:
                     initialise_fn = getattr(imported_module, 'initialise')
                 except AttributeError:
-                    initialise_fn = lambda _: (lambda a, s: dict())
                     self._errors.append("ERROR: %s at line %d, imported Python module %s " \
                                         "does not define initialise function" % \
                                         (an_import.filename, an_import.lineno,
@@ -239,16 +242,14 @@ class FirstPassResolverVisitor(ResolverVisitor):
                 module_spec.update({'module' : imported_module,
                                     'get_inputs_fn' : get_inputs_fn,
                                     'get_outputs_fn' : get_outputs_fn,
-                                    'get_configuration_fn' : get_configuration_fn,
-                                    'configure_fn' : configure_fn,
-                                    'initialise_fn' : initialise_fn})
+                                    'get_configuration_fn' : get_configuration_fn})
 
             # Always add the module alias as a key to the import dictionary
             import_symbol_dict[an_import.alias] = module_spec
 
     @multimethod(Component)
     def visit(self, component):
-        # Component name *must* be the same as te file name
+        # Component name *must* be the same as the file name
 
         # Add the inputs, outputs, configuration and declaration identifiers to
         # the module's symbol table
@@ -556,15 +557,23 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                 (iden_expr.filename,
                                  iden_expr.lineno,
                                  iden_expr))
+            iden_expr.resolution_symbols['inputs'] = Nothing()
+            iden_expr.resolution_symbols['outputs'] = Nothing()
+            return
 
         module_alias = declaration.component_alias
         module_spec = imports_sym_table[module_alias]
 
         root = Just(0) if module_spec.has_key('module') else Nothing()
-        iden_expr.resolution_symbols['inputs'] = root >= (lambda _: Just(set([Identifier(None, 0, i) \
-                                                                              for i in module_spec['get_inputs_fn']()])))
-        iden_expr.resolution_symbols['outputs'] = root >= (lambda _: Just(set([Identifier(None, 0, i) \
-                                                                               for i in module_spec['get_outputs_fn']()])))
+        def get_transform_fn(stuff):
+            return lambda _: Just((set([Identifier(None, 0, i) for i in stuff[0]]),
+                                   set([Identifier(None, 0, i) for i in stuff[1]]))) \
+                             if isinstance(stuff, tuple) \
+                             else Just(set([Identifier(None, 0, i) for i in stuff]))
+        inputs_transform_fn = get_transform_fn(module_spec['get_inputs_fn']())
+        outputs_transform_fn = get_transform_fn(module_spec['get_outputs_fn']())
+        iden_expr.resolution_symbols['inputs'] = root >= inputs_transform_fn
+        iden_expr.resolution_symbols['outputs'] = root >= outputs_transform_fn
 
     @multimethod(LiteralExpression)
     def visit(self, literal_expr):

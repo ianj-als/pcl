@@ -39,8 +39,8 @@ class ExecutorVisitor(object):
                "from pypeline.core.arrows.kleisli_arrow import KleisliArrow\n"
     __TEMP_VAR = "____tmp_%d"
 
-    def __init__(self):
-        self._object_file = open('a.py', 'w')
+    def __init__(self, filename_root):
+        self._object_file = open('%s.py' % filename_root, 'w')
         self._indent_level = 0
         self._tmp_var_no = 0
         self._var_table = dict()
