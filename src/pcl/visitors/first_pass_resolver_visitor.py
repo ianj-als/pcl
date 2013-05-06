@@ -377,7 +377,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
     def visit(self, para_scalar_expr):
         # Inputs are all the union of the top and bottom component inputs
         top_inputs = para_scalar_expr.left.resolution_symbols['inputs']
-        bottom_inputs = para_scalar_expr.right.resolution_symbol['inputs']
+        bottom_inputs = para_scalar_expr.right.resolution_symbols['inputs']
         inputs = top_inputs >= \
                  (lambda tins: bottom_inputs >= \
                   (lambda bins: Just(set([i for i in tins.union(bins)]))))
@@ -564,16 +564,21 @@ class FirstPassResolverVisitor(ResolverVisitor):
         module_alias = declaration.component_alias
         module_spec = imports_sym_table[module_alias]
 
-        root = Just(0) if module_spec.has_key('module') else Nothing()
-        def get_transform_fn(stuff):
-            return lambda _: Just((set([Identifier(None, 0, i) for i in stuff[0]]),
-                                   set([Identifier(None, 0, i) for i in stuff[1]]))) \
-                             if isinstance(stuff, tuple) \
-                             else Just(set([Identifier(None, 0, i) for i in stuff]))
-        inputs_transform_fn = get_transform_fn(module_spec['get_inputs_fn']())
-        outputs_transform_fn = get_transform_fn(module_spec['get_outputs_fn']())
-        iden_expr.resolution_symbols['inputs'] = root >= inputs_transform_fn
-        iden_expr.resolution_symbols['outputs'] = root >= outputs_transform_fn
+        transform_fn = lambda stuff: Just((set([Identifier(None, 0, i) for i in stuff[0]]),
+                                           set([Identifier(None, 0, i) for i in stuff[1]]))) \
+                                     if isinstance(stuff, tuple) \
+                                     else Just(set([Identifier(None, 0, i) for i in stuff]))
+        inputs_fn = module_spec.get('get_inputs_fn', lambda: list())
+        outputs_fn = module_spec.get('get_outputs_fn', lambda: list())
+        inputs = inputs_fn()
+        outputs = outputs_fn()
+        # TODO: This needs looking at. Setting inputs and outputs to
+        # Nothing casuses problems in the composition second pass visit
+        # method since the bind function receives a set rather than a
+        # Maybe monad. However, placing empty lists in a Just make
+        # the whole thing work!
+        iden_expr.resolution_symbols['inputs'] = transform_fn(inputs)
+        iden_expr.resolution_symbols['outputs'] = transform_fn(outputs)
 
     @multimethod(LiteralExpression)
     def visit(self, literal_expr):

@@ -121,7 +121,7 @@ class ParallelWithScalarExpression(BinaryExpression):
 
     def __repr__(self):
         return "<ParallelWithScalarExpression:\n\tbinary expr = %s>" % \
-               (super(ParallelWithTupleExpression, self).__repr__())
+               (super(ParallelWithScalarExpression, self).__repr__())
 
 class FirstExpression(UnaryExpression):
     def __init__(self, filename, lineno, expr):

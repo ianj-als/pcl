@@ -76,7 +76,7 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
         right_inputs = comp_expr.right.resolution_symbols['inputs']
         if left_outputs != right_inputs:
             self._errors.append("ERROR: %s at line %d, attempted composition " \
-                                "with incompatible components, expected %s, got %s" % \
+                                "with incompatible components:\n\texpected %s\n\tgot %s" % \
                                 (comp_expr.filename,
                                  comp_expr.lineno,
                                  type_formatting_fn(left_outputs),
