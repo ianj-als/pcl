@@ -339,7 +339,20 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(Declaration)
     def visit(self, decl):
-        pass
+        # Check for missing construction configuration in a declaration
+        imports_sym_table = self._module.resolution_symbols['imports']
+        module_spec = imports_sym_table[decl.component_alias]
+        expected_used_configuration = frozenset([Identifier(None, 0, c) for c in module_spec['get_configuration_fn']()])
+        got_used_configuration = frozenset([m.to for m in decl.configuration_mappings])
+        unused_configuration = expected_used_configuration - got_used_configuration
+        if len(unused_configuration) > 0:
+            self._errors.append("ERROR: %(filename)s at line %(lineno)d, missing configuration in declaration " \
+                                "of component %(component)s with alias %(import_alias)s: %(missing)s" % \
+                                {'filename' : decl.filename,
+                                 'lineno' : decl.lineno,
+                                 'component' : decl.identifier,
+                                 'import_alias' : decl.component_alias,
+                                 'missing' : ", ".join([str(i) for i in unused_configuration])})
 
     @multimethod(object)
     def visit(self, nowt):
@@ -380,7 +393,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
         bottom_inputs = para_scalar_expr.right.resolution_symbols['inputs']
         inputs = top_inputs >= \
                  (lambda tins: bottom_inputs >= \
-                  (lambda bins: Just(set([i for i in tins.union(bins)]))))
+                  (lambda bins: Just(frozenset([i for i in tins.union(bins)]))))
 
         # Outputs of component is the top and bottom components' outputs
         top_outputs = para_scalar_expr.left.resolution_symbols['outputs']
@@ -421,7 +434,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
         all_out_mappings.extend(merge_expr.bottom_mapping)
         all_out_mappings.extend(merge_expr.literal_mapping)
 
-        all_to_identifiers = [m.to for m in all_out_mappings]
+        all_to_identifiers = [m.to for m in all_out_mappings if str(m.to) != '_']
         duplicate_out_identifiers = FirstPassResolverVisitor.__check_scalar_or_tuple_collection(all_to_identifiers)
 
         if duplicate_top_in_identifiers or \
@@ -446,14 +459,14 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                         'filename' : e.filename,
                                         'lineno' : e.lineno})
 
-        merge_expr.resolution_symbols['inputs'] = Just((set(top_from_identifiers), set(bottom_from_identifiers)))
-        merge_expr.resolution_symbols['outputs'] = Just(set(all_to_identifiers))
+        merge_expr.resolution_symbols['inputs'] = Just((frozenset(top_from_identifiers), frozenset(bottom_from_identifiers)))
+        merge_expr.resolution_symbols['outputs'] = Just(frozenset(all_to_identifiers))
 
     @multimethod(WireExpression)
     @resolve_expression_once
     def visit(self, wire_expr):
         inputs = [m.from_ for m in wire_expr.mapping]
-        outputs = [m.to for m in wire_expr.mapping]
+        outputs = [m.to for m in wire_expr.mapping if str(m.to) != '_']
 
         # Catch duplicates
         duplicate_in_identifiers = FirstPassResolverVisitor.__check_scalar_or_tuple_collection(inputs)
@@ -473,16 +486,16 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                         'filename' : e.filename,
                                         'lineno' : e.lineno})
 
-        wire_expr.resolution_symbols['inputs'] = Just(set(inputs))
-        wire_expr.resolution_symbols['outputs'] = Just(set(outputs))
+        wire_expr.resolution_symbols['inputs'] = Just(frozenset(inputs))
+        wire_expr.resolution_symbols['outputs'] = Just(frozenset(outputs))
 
     @multimethod(WireTupleExpression)
     @resolve_expression_once
     def visit(self, wire_tuple_expr):
         top_inputs = [m.from_ for m in wire_tuple_expr.top_mapping]
-        top_outputs = [m.to for m in wire_tuple_expr.top_mapping]
+        top_outputs = [m.to for m in wire_tuple_expr.top_mapping if m.to.identifier != '_']
         bottom_inputs = [m.from_ for m in wire_tuple_expr.bottom_mapping]
-        bottom_outputs = [m.to for m in wire_tuple_expr.bottom_mapping]
+        bottom_outputs = [m.to for m in wire_tuple_expr.bottom_mapping if m.to.identifier != '_']
 
         # Catch duplicates
         duplicate_top_in_identifiers = FirstPassResolverVisitor.__check_scalar_or_tuple_collection(top_inputs)
@@ -519,8 +532,8 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                         'filename' : e.filename,
                                         'lineno' : e.lineno})
 
-        wire_tuple_expr.resolution_symbols['inputs'] = Just((set(top_inputs), set(bottom_inputs)))
-        wire_tuple_expr.resolution_symbols['outputs'] = Just((set(top_outputs), set(bottom_outputs)))
+        wire_tuple_expr.resolution_symbols['inputs'] = Just((frozenset(top_inputs), frozenset(bottom_inputs)))
+        wire_tuple_expr.resolution_symbols['outputs'] = Just((frozenset(top_outputs), frozenset(bottom_outputs)))
 
     @multimethod(Mapping)
     def visit(self, mapping):
@@ -564,12 +577,13 @@ class FirstPassResolverVisitor(ResolverVisitor):
         module_alias = declaration.component_alias
         module_spec = imports_sym_table[module_alias]
 
-        transform_fn = lambda stuff: Just((set([Identifier(None, 0, i) for i in stuff[0]]),
-                                           set([Identifier(None, 0, i) for i in stuff[1]]))) \
+        transform_fn = lambda stuff: Nothing() if stuff is None \
+                                     else Just((frozenset([Identifier(None, 0, i) for i in stuff[0]]),
+                                                frozenset([Identifier(None, 0, i) for i in stuff[1]]))) \
                                      if isinstance(stuff, tuple) \
-                                     else Just(set([Identifier(None, 0, i) for i in stuff]))
-        inputs_fn = module_spec.get('get_inputs_fn', lambda: list())
-        outputs_fn = module_spec.get('get_outputs_fn', lambda: list())
+                                     else Just(frozenset([Identifier(None, 0, i) for i in stuff]))
+        inputs_fn = module_spec.get('get_inputs_fn', lambda: None)
+        outputs_fn = module_spec.get('get_outputs_fn', lambda: None)
         inputs = inputs_fn()
         outputs = outputs_fn()
         # TODO: This needs looking at. Setting inputs and outputs to

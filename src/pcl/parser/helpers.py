@@ -1,4 +1,5 @@
 import logging
+import ply.yacc as yacc
 
 from pcl_lexer import PCLLexer
 from pcl_parser import PCLParser

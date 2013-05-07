@@ -1,4 +1,5 @@
 import datetime
+import os
 
 from multimethod import multimethod, multimethodclass
 from parser.import_spec import Import
@@ -40,6 +41,10 @@ class ExecutorVisitor(object):
     __TEMP_VAR = "____tmp_%d"
 
     def __init__(self, filename_root):
+        # Check that the __init__.py file exists in the
+        # working directory
+        if os.path.isfile('__init__.py') is False:
+            open('__init__.py', 'w').close()
         self._object_file = open('%s.py' % filename_root, 'w')
         self._indent_level = 0
         self._tmp_var_no = 0
@@ -101,8 +106,6 @@ class ExecutorVisitor(object):
         self.__write_line("import %s as ____%s" % \
                           (an_import.module_name, \
                            an_import.alias))
-        self.__write_line()
-        self.__write_line()
 
     @multimethod(Component)
     def visit(self, component):
@@ -111,6 +114,8 @@ class ExecutorVisitor(object):
                                              if isinstance(c, tuple) else str([str(i) for i in c]))
 
         # The get name function. This is not strictly needed but is included for completeness
+        self.__write_line()
+        self.__write_line()
         self.__write_function("get_name",
                               [("return '%s'" % \
                                 component.identifier,
@@ -226,9 +231,11 @@ class ExecutorVisitor(object):
     @multimethod(MergeExpression)
     def visit(self, merge_expr):
         top_mappings = ["'%s' : t['%s']" % (m.to, m.from_) \
-                        for m in merge_expr.top_mapping]
+                        for m in merge_expr.top_mapping \
+                        if str(m.to) != '_']
         bottom_mappings = ["'%s' : b['%s']" % (m.to, m.from_) \
-                           for m in merge_expr.bottom_mapping]
+                           for m in merge_expr.bottom_mapping \
+                           if str(m.to) != '_']
         literal_mappings = ["'%s' : %s" % \
                             (m.to, \
                              "'%s'" % m.literal if isinstance(m.literal, str) else m.literal) \
@@ -244,17 +251,20 @@ class ExecutorVisitor(object):
                           (self.__get_temp_var(wire_expr),
                            ", ".join(["'%s' : '%s'" % \
                                       (m.to, m.from_) \
-                                      for m in wire_expr.mapping])))
+                                      for m in wire_expr.mapping \
+                                      if str(m.to) != '_'])))
 
     @multimethod(WireTupleExpression)
     def visit(self, wire_tuple_expr):
         wire_fn = "lambda t: ({%s}, {%s})" % \
                   (", ".join(["'%s' : t[0]['%s']" % \
                               (m.to, m.from_) \
-                              for m in wire_tuple_expr.top_mapping]), \
+                              for m in wire_tuple_expr.top_mapping \
+                              if str(m.to) != '_']), \
                    ", ".join(["'%s' : t[1]['%s']" % \
                               (m.to, m.from_) \
-                              for m in wire_tuple_expr.bottom_mapping]))
+                              for m in wire_tuple_expr.bottom_mapping \
+                              if str(m.to) != '_']))
         self.__write_line("%s = cons_wire(%s)" % \
                           (self.__get_temp_var(wire_tuple_expr),
                            wire_fn))

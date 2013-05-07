@@ -268,11 +268,22 @@ def p_literal(p):
                | STRING'''
     p[0] = Literal(p.parser.filename, p.lineno(1), p[1])
 
-def p_error(p):
+recovery_tokens = (')',
+                   'COMPOSITION',
+                   'PARALLEL_WITH_TUPLE',
+                   'PARALLEL_WITH_SCALAR',
+                   'AS',
+                   'DECLARE')
+
+def p_error(token):
     print "ERROR: line %d parser failure at or near %s" % \
-           (p.lineno,
-            p.type)
-    yacc.errok()
+           (token.lineno,
+            token.type)
+    while True:
+        tok = yacc.token()
+        if not tok or tok.type in recovery_tokens:
+            break
+    yacc.restart()
 
 class PCLParser(object):
     def __init__(self, lexer, logger, **kwargs):
