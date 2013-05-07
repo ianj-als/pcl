@@ -73,7 +73,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
         self.__resolver_factory = resolver_factory
         self.__pcl_import_paths = list()
         if pcl_import_path:
-            self.__pcl_import_paths.extend(pcl_import_path.split(";"))
+            self.__pcl_import_paths.extend(pcl_import_path.split(":"))
         self.__pcl_import_paths.append(".")
         sys.path.extend(self.__pcl_import_paths)
 
@@ -171,7 +171,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
             if thing in symbol_dict:
                 returns.append(thing)
             symbol_dict[thing] = thing
-        return tuple(returns)
+            return tuple(returns)
 
     @multimethod(Module)
     def visit(self, module):

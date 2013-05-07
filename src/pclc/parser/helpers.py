@@ -22,7 +22,7 @@ from pcl_parser import PCLParser
 
 logging.basicConfig(
     level = logging.DEBUG,
-    filename = "pcl.log",
+    filename = "pclc.log",
     filemode = "w",
     format = "%(asctime)s: %(levelname)s: %(filename)s at line %(lineno)d: %(message)s",
     datefmt='%d %b %Y %H:%M:%S'
