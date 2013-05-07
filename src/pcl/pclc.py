@@ -23,6 +23,13 @@ from visitors.executor_visitor import ExecutorVisitor
 
 
 if __name__ == '__main__':
+    # Check we've got at least one command line argument
+    if len(sys.argv) < 2:
+        print "Usage:"
+        print "\t%s [PCL filename]" % os.path.basename(sys.argv[0])
+        print
+        sys.exit(2)
+
     # Add the PCL extension is one is missing
     basename = os.path.basename(sys.argv[1])
     basename_bits = basename.split(".")
@@ -35,10 +42,13 @@ if __name__ == '__main__':
     if os.path.isfile(pcl_filename) is False:
         print "ERROR: Cannot find file %s" % pcl_filename
         sys.exit(1)
+
+    # Parse...
     ast = parse_component(pcl_filename)
     if not ast:
         sys.exit(1)
 
+    # Resolve...
     resolver = Resolver(os.getenv("PCL_IMPORT_PATH", "."))
     resolver.resolve(ast)
     for warning in resolver.get_warnings():
@@ -47,8 +57,13 @@ if __name__ == '__main__':
         for error in resolver.get_errors():
             print error
         sys.exit(1)
-    else:
-        executor = ExecutorVisitor(basename_bits[0])
+
+    # Execute.
+    executor = ExecutorVisitor(basename_bits[0])
+    try:
         ast.accept(executor)
+    except Exception as ex:
+        print "ERROR: Code generation failed: %s" % ex
+        sys.exit(1)
 
     sys.exit(0)
