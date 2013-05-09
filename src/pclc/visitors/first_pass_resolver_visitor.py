@@ -1,4 +1,6 @@
 #
+# Copyright Capita Translation and Interpreting 2013
+#
 # This file is part of Pipeline Creation Language (PCL).
 # 
 # Pipeline Creation Language (PCL) is free software: you can redistribute it and/or modify
