@@ -268,7 +268,7 @@ class ExecutorVisitor(object):
         self.__write_line("%s = cons_dictionary_wire({%s})" % \
                           (self.__get_temp_var(wire_expr),
                            ", ".join(["'%s' : '%s'" % \
-                                      (m.to, m.from_) \
+                                      (m.from_, m.to) \
                                       for m in wire_expr.mapping \
                                       if str(m.to) != '_'])))
 

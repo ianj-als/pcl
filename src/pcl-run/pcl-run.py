@@ -124,12 +124,13 @@ if __name__ == '__main__':
         pipeline_inputs = list()
         for set_inputs in inputs:
             pipeline_inputs.append(build_inputs_fn(set_inputs))
+        pipeline_inputs = tuple(pipeline_inputs)
     else:
         pipeline_inputs = build_inputs_fn(inputs)
 
     executor = ThreadPoolExecutor(max_workers = 3)
     print >> sys.stderr, "Evaluating pipeline..."
     try:
-        print eval_pipeline(executor, pipeline, tuple(pipeline_inputs), list())
+        print eval_pipeline(executor, pipeline, pipeline_inputs, None)
     finally:
         executor.shutdown(True)
