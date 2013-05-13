@@ -173,7 +173,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
             if thing in symbol_dict:
                 returns.append(thing)
             symbol_dict[thing] = thing
-            return tuple(returns)
+        return tuple(returns)
 
     @multimethod(Module)
     def visit(self, module):

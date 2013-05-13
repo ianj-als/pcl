@@ -130,6 +130,6 @@ if __name__ == '__main__':
     executor = ThreadPoolExecutor(max_workers = 3)
     print >> sys.stderr, "Evaluating pipeline..."
     try:
-        print eval_pipeline(executor, pipeline, pipeline_inputs, list())
+        print eval_pipeline(executor, pipeline, tuple(pipeline_inputs), list())
     finally:
         executor.shutdown(True)

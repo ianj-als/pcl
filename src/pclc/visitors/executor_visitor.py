@@ -274,7 +274,7 @@ class ExecutorVisitor(object):
 
     @multimethod(WireTupleExpression)
     def visit(self, wire_tuple_expr):
-        wire_fn = "lambda t: ({%s}, {%s})" % \
+        wire_fn = "lambda t, s: ({%s}, {%s})" % \
                   (", ".join(["'%s' : t[0]['%s']" % \
                               (m.to, m.from_) \
                               for m in wire_tuple_expr.top_mapping \
