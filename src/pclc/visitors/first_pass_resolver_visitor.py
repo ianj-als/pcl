@@ -181,6 +181,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
         if not self._module.__dict__.has_key("resolution_symbols"):
             self._module.resolution_symbols = {'imports' : dict(),
                                                'components' : dict(),
+                                               'used_components' : dict(),
                                                'configuration' : dict()}
 
     @multimethod(Import)
@@ -268,6 +269,13 @@ class FirstPassResolverVisitor(ResolverVisitor):
     @multimethod(Component)
     def visit(self, component):
         # Component name *must* be the same as the file name
+        if str(component.identifier) != ".".join(os.path.basename(component.filename).split(".")[:-1]):
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, component %(component)s should be " \
+                             "declared in a file called %(component)s.pcl",
+                             [component],
+                             lambda e: {'filename' : component.filename,
+                                        'lineno' : component.lineno,
+                                        'component' : component.identifier})
 
         # Add the inputs, outputs, configuration and declaration identifiers to
         # the module's symbol table
@@ -372,9 +380,22 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                  'import_alias' : decl.component_alias,
                                  'missing' : ", ".join([str(i) for i in unused_configuration])})
 
+        # Mark the declaration as not used, yet. ;)
+        self._module.resolution_symbols['used_components'][decl.component_alias] = False
+
     @multimethod(object)
     def visit(self, nowt):
-        pass
+        # Look for unused components
+        unused_component_aliases = reduce(lambda acc, e: acc + [e[0]],
+                                          filter(lambda e: e[1] == False,
+                                                 self._module.resolution_symbols['used_components'].iteritems()),
+                                          list())
+        self._add_warnings("WARNING: %(filename)s at line %(lineno)d, component %(component)s is defined " \
+                           "but not used",
+                           unused_component_aliases,
+                           lambda e: {'filename' : e.filename,
+                                      'lineno' : e.lineno,
+                                      'component' : e})
 
     @multimethod(UnaryExpression)
     def visit(self, unary_expr):
@@ -595,6 +616,10 @@ class FirstPassResolverVisitor(ResolverVisitor):
         module_alias = declaration.component_alias
         module_spec = imports_sym_table[module_alias]
 
+        # Mark component as used
+        self._module.resolution_symbols['used_components'][declaration.component_alias] = True
+
+        # Create types
         transform_fn = lambda stuff: Nothing() if stuff is None \
                                      else Just((frozenset([Identifier(None, 0, i) for i in stuff[0]]),
                                                 frozenset([Identifier(None, 0, i) for i in stuff[1]]))) \
@@ -604,11 +629,8 @@ class FirstPassResolverVisitor(ResolverVisitor):
         outputs_fn = module_spec.get('get_outputs_fn', lambda: None)
         inputs = inputs_fn()
         outputs = outputs_fn()
-        # TODO: This needs looking at. Setting inputs and outputs to
-        # Nothing casuses problems in the composition second pass visit
-        # method since the bind function receives a set rather than a
-        # Maybe monad. However, placing empty lists in a Just make
-        # the whole thing work!
+
+        # Identifier's types
         iden_expr.resolution_symbols['inputs'] = transform_fn(inputs)
         iden_expr.resolution_symbols['outputs'] = transform_fn(outputs)
 
