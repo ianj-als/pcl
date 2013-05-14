@@ -307,7 +307,10 @@ class PCLParser(object):
     def __init__(self, lexer, logger, **kwargs):
         self.__lexer = lexer
         self.__logger = logger
-        kwargs['debuglog'] = logger
+        if 'debuglog' not in kwargs:
+            kwargs['debuglog'] = logger
+        if 'errorlog' not in kwargs:
+            kwargs['errorlog'] = logger
         self.__parser = yacc.yacc(**kwargs)
 
     def parseFile(self, filename, **kwargs):

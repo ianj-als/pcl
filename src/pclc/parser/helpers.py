@@ -23,7 +23,7 @@ from pcl_lexer import PCLLexer
 from pcl_parser import PCLParser
 
 logging.basicConfig(
-    level = logging.DEBUG,
+    level = logging.WARNING,
     filename = "pclc.log",
     filemode = "w",
     format = "%(asctime)s: %(levelname)s: %(filename)s at line %(lineno)d: %(message)s",
@@ -32,7 +32,7 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 def parse_component(filename):
-    lexer = PCLLexer(debug = 1, debuglog = logger)
+    lexer = PCLLexer(logger, debug = 1)
     parser = PCLParser(lexer, logger, debug = 1, write_tables = 0)
     ast = parser.parseFile(filename)
 

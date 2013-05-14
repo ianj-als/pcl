@@ -108,7 +108,11 @@ class PCLLexer(object):
               (t.value[0], self.__lexer.lineno)
         t.lexer.skip(1)
 
-    def __init__(self, **kwargs):
+    def __init__(self, logger = None, **kwargs):
+        if 'debuglog' not in kwargs:
+            kwargs['debuglog'] = logger
+        if 'errorlog' not in kwargs:
+            kwargs['errorlog'] = logger
         self.__lexer = lex.lex(module = self, **kwargs)
 
     def input(self, input):
