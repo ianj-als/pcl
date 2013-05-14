@@ -20,28 +20,45 @@
 import os
 import sys
 
+from optparse import OptionParser
 from parser.helpers import parse_component
 from parser.resolver import Resolver
 from visitors.executor_visitor import ExecutorVisitor
 
 
+__VERSION = "1.0.0"
+
+
 if __name__ == '__main__':
+    # The option parser
+    parser = OptionParser("Usage: %prog [options] [PCL file]")
+    parser.add_option("-v",
+                      "--version",
+                      action = "store_true",
+                      default = False,
+                      dest = "version",
+                      help = "show version and exit")
+    (options, args) = parser.parse_args()
+
+    # Show version?
+    if options.version is True:
+        print __VERSION
+        sys.exit(0)
+
     # Check we've got at least one command line argument
-    if len(sys.argv) < 2:
-        print "Usage:"
-        print "\t%s [PCL filename]" % os.path.basename(sys.argv[0])
-        print
+    if len(args) < 1:
+        print "ERROR: no input file"
         sys.exit(2)
 
     # Add the PCL extension is one is missing
-    basename = os.path.basename(sys.argv[1])
+    basename = os.path.basename(args[0])
     basename_bits = basename.split(".")
     if len(basename_bits) == 1:
         # Add the PCL extension on
         basename_bits.append("pcl")
 
     # PCL file name
-    pcl_filename = os.path.join(os.path.dirname(sys.argv[1]), ".".join(basename_bits))
+    pcl_filename = os.path.join(os.path.dirname(args[0]), ".".join(basename_bits))
     if os.path.isfile(pcl_filename) is False:
         print "ERROR: Cannot find file %s" % pcl_filename
         sys.exit(1)

@@ -22,8 +22,12 @@ import os
 import sys
 
 from concurrent.futures import ThreadPoolExecutor
+from optparse import OptionParser
 from pypeline.core.arrows.kleisli_arrow import KleisliArrow
 from pypeline.helpers.parallel_helpers import eval_pipeline, cons_function_component
+
+
+__VERSION = "1.0.0"
 
 
 def get_configuration(section, config_key):
@@ -49,14 +53,32 @@ def get_configuration(section, config_key):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print "Usage:"
-        print "\t%s [PCL configuration filename]" % os.path.basename(sys.argv[0])
-        print
+    # The option parser
+    parser = OptionParser("Usage: %prog [options] [PCL configuration]")
+    parser.add_option("-v",
+                      "--version",
+                      action = "store_true",
+                      default = False,
+                      dest = "version",
+                      help = "show version and exit")
+    parser.add_option("-n",
+                      "--noworkers",
+                      default = 3,
+                      dest = "no_workers",
+                      help = "number of pipeline evaluation workers [default: %default]")
+    (options, args) = parser.parse_args()
+
+    # Show version?
+    if options.version is True:
+        print __VERSION
+        sys.exit(0)
+
+    if len(args) < 1:
+        print "ERROR: no configuration file specified"
         sys.exit(2)
 
     # Add the PCL extension is one is missing
-    basename = os.path.basename(sys.argv[1])
+    basename = os.path.basename(args[0])
     basename_bits = basename.split(".")
     if len(basename_bits) == 1:
         # Add the CFG extension on
@@ -128,7 +150,7 @@ if __name__ == '__main__':
     else:
         pipeline_inputs = build_inputs_fn(inputs)
 
-    executor = ThreadPoolExecutor(max_workers = 3)
+    executor = ThreadPoolExecutor(max_workers = options.no_workers)
     print >> sys.stderr, "Evaluating pipeline..."
     try:
         print eval_pipeline(executor, pipeline, pipeline_inputs, None)
