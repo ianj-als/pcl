@@ -124,17 +124,17 @@ class PCLLexer(object):
 if __name__ == "__main__":
     lexer = PCLLexer(debug = 1)
     lexer.input(r'''
-    import twat.arse.feck as bum
-    component arse
-    inputs a, b
-    output c
-    configuration a,b,c,d
+    import a.b.c as d
+    component e
+    inputs f, g
+    output h
+    configuration i,j,k,l
     declare
-      a := new arse with a -> b.d.c c -> d
-      b := new bum
+      a := new m with n -> o.p.q, r -> s
+      b := new t
     as
       (wire a -> b, c -> d &&& wire a -> b) >>>
-      merge top[a] -> bollox, -7 -> v, -7.9e-9 -> arse, "b'o'\"l\"lox" -> bum, "" -> feck >>> arse''')
+      merge top[a] -> b, -7 -> v, -7.9e-9 -> a, "h'e'\"l\"ox" -> b, "" -> u >>> v''')
     while True:
         token = lexer.token()
         if not token:

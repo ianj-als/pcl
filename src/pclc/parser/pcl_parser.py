@@ -323,15 +323,15 @@ if __name__ == '__main__':
     parser.filename = "internal"
     component = parser.parse(
         input = '''
-        import twat.arse.feck as bum
-        import feck.arse.twat as feck
-        component arse
+        import a.b.c as d
+        import e.f.g as h
+        component i
           inputs a,b,c
           output (a,b,c)
           configuration a,b,c,d
           declare
-            a := new arse
-            b := new bum with a -> b, c -> d
+            a := new i
+            b := new j with a -> b, c -> d
             irstlm := new lang_model with
               a -> b,
               b -> c,
