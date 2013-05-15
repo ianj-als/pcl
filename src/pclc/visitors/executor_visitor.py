@@ -169,7 +169,7 @@ class ExecutorVisitor(object):
                                                            (cm.to, \
                                                             "config['%s']" % cm.from_ \
                                                             if isinstance(cm.from_, Identifier) \
-                                                            else "'%s'" % cm.from_ \
+                                                            else cm.from_.value.__repr__() \
                                                             if isinstance(cm.from_.value, str) \
                                                             else m.literal) \
                                                            for cm in decl.configuration_mappings]))) \
@@ -256,7 +256,7 @@ class ExecutorVisitor(object):
                            if str(m.to) != '_']
         literal_mappings = ["'%s' : %s" % \
                             (m.to, \
-                             "'%s'" % m.literal if isinstance(m.literal, str) else m.literal) \
+                             m.literal.value.__repr__() if isinstance(m.literal.value, str) else m.literal) \
                             for m in merge_expr.literal_mapping]
         mapping = ", ".join(top_mappings + bottom_mappings + literal_mappings)
         self.__write_line("%s = cons_unsplit_wire(lambda t, b: {%s})" % \

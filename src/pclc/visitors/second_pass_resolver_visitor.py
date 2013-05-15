@@ -103,11 +103,6 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
         comp_expr.resolution_symbols['inputs'] = comp_expr.left.resolution_symbols['inputs']
         comp_expr.resolution_symbols['outputs'] = comp_expr.right.resolution_symbols['outputs']
 
-        if isinstance(comp_expr.left.resolution_symbols['inputs'], frozenset):
-            print "Comp Left type: %s" % type(comp_expr.left)
-        if isinstance(comp_expr.right.resolution_symbols['outputs'], frozenset):
-            print "Comp right type: %s" % type(comp_expr.right)
-
     def __derive_inputs(self, expr):
         return self.__walk_expression(expr.parent, expr)
 

@@ -85,7 +85,7 @@ class PCLLexer(object):
         return t
 
     def t_FLOAT(self, t):
-        r'[-]?\d+\.\d+?([eE][-+]\d+)?'
+        r'[-]?\d+\.\d+([eE][-+]\d+)?'
         t.value = float(t.value)
         return t
 

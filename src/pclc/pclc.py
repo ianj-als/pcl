@@ -26,12 +26,17 @@ from parser.resolver import Resolver
 from visitors.executor_visitor import ExecutorVisitor
 
 
-__VERSION = "1.0.1"
+__VERSION = "1.0.2"
 
 
 if __name__ == '__main__':
     # The option parser
     parser = OptionParser("Usage: %prog [options] [PCL file]")
+    parser.add_option("-l",
+                      "--loglevel",
+                      default = "WARN",
+                      dest = "loglevel",
+                      help = "parser log file reporting level [default: %default]")
     parser.add_option("-v",
                       "--version",
                       action = "store_true",
@@ -64,7 +69,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Parse...
-    ast = parse_component(pcl_filename)
+    ast = parse_component(pcl_filename, options.loglevel)
     if not ast:
         sys.exit(1)
 

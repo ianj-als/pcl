@@ -22,22 +22,25 @@ import ply.yacc as yacc
 from pcl_lexer import PCLLexer
 from pcl_parser import PCLParser
 
-logging.basicConfig(
-    level = logging.WARNING,
-    filename = "pclc.log",
-    filemode = "w",
-    format = "%(asctime)s: %(levelname)s: %(filename)s at line %(lineno)d: %(message)s",
-    datefmt='%d %b %Y %H:%M:%S'
-)
-logger = logging.getLogger()
 
-def parse_component(filename):
+def parse_component(filename, loglevel = "WARNING"):
+    valid_loglevels = filter(lambda k: k in ('CRITICAL', 'ERROR', 'WARNING', 'WARN', 'INFO', 'DEBUG'),
+                             logging.__dict__.keys())
+    if loglevel not in valid_loglevels:
+        print "ERROR: Invalid log level %s" % loglevel
+        return None
+
+    logging.basicConfig(
+        level = logging.__dict__[loglevel],
+        filename = "pclc.log",
+        filemode = "w",
+        format = "%(asctime)s: %(levelname)s: %(filename)s at line %(lineno)d: %(message)s",
+        datefmt='%d %b %Y %H:%M:%S'
+        )
+    logger = logging.getLogger()
+
     lexer = PCLLexer(logger, debug = 1)
     parser = PCLParser(lexer, logger, debug = 1, write_tables = 0)
     ast = parser.parseFile(filename)
 
     return ast
-
-def get_logger():
-    global logger
-    return logger
