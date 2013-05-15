@@ -22,6 +22,17 @@ import os
 from multimethod import multimethod, multimethodclass
 from parser.import_spec import Import
 from parser.component import Component
+from parser.conditional_expressions import AndConditionalExpression, \
+     OrConditionalExpression, \
+     XorConditionalExpression, \
+     EqualsConditionalExpression, \
+     NotEqualsConditionalExpression, \
+     GreaterThanConditionalExpression, \
+     LessThanConditionalExpression, \
+     GreaterThanEqualToConditionalExpression, \
+     LessThanEqualToConditionalExpression, \
+     UnaryConditionalExpression, \
+     TerminalConditionalExpression
 from parser.declaration import Declaration
 from parser.expressions import Literal, \
      Identifier, \
@@ -36,6 +47,7 @@ from parser.expressions import Literal, \
      MergeExpression, \
      WireExpression, \
      WireTupleExpression, \
+     IfExpression, \
      IdentifierExpression, \
      LiteralExpression
 from parser.mappings import Mapping, \
@@ -55,7 +67,8 @@ class ExecutorVisitor(object):
                "# %(datetime)s.\n" \
                "#\n" \
                "from pypeline.helpers.parallel_helpers import cons_function_component, cons_wire, cons_dictionary_wire, cons_split_wire, cons_unsplit_wire\n" \
-               "from pypeline.core.arrows.kleisli_arrow import KleisliArrow\n"
+               "from pypeline.core.arrows.kleisli_arrow import KleisliArrow\n" \
+               "from pypeline.core.arrows.kleisli_arrow_choice import KleisliArrowChoice\n"
     __TEMP_VAR = "____tmp_%d"
 
     def __init__(self, filename_root):
@@ -286,6 +299,54 @@ class ExecutorVisitor(object):
         self.__write_line("%s = cons_wire(%s)" % \
                           (self.__get_temp_var(wire_tuple_expr),
                            wire_fn))
+
+    @multimethod(IfExpression)
+    def visit(self, if_expr):
+        pass
+
+    @multimethod(AndConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(OrConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(XorConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(EqualsConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(NotEqualsConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(GreaterThanConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(LessThanConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(GreaterThanEqualToConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(LessThanEqualToConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(UnaryConditionalExpression)
+    def visit(self, unary_cond_expr):
+        pass
+
+    @multimethod(TerminalConditionalExpression)
+    def visit(self, term_cond_expr):
+        pass
 
     @multimethod(Mapping)
     def visit(self, mapping):

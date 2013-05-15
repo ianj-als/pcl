@@ -18,6 +18,8 @@ syn keyword pclImports import
 syn match pclComment "#.*$"
 syn match pclIdentifier "\h\+"
 syn match pclQualifiedIdentifier "\h\+\(\.\h\+\)\+"
+syn match pclStateIdentifier "@\h\+"
+syn match pclStateQualifiedIdentifier "@\h\+\(\.\h\+\)\+"
 syn match pclOperators ":=\|->\|>>>\|\*\*\*\|&&&\|first\|second"
 
 hi def link pclKeywords Statement
@@ -25,6 +27,8 @@ hi def link pclStatement Statement
 hi def link pclOperators Operator
 hi def link pclQualifiedIdentifier Identifier
 hi def link pclIdentifier Type
+hi def link pclStateQualifiedIdentifier Debug
+hi def link pclStateIdentifier Debug
 hi def link pclImports Include
 hi def link pclComment Comment
 

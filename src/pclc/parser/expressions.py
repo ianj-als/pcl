@@ -69,6 +69,15 @@ class Identifier(Entity):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+class StateIdentifier(Identifier):
+    def __init__(self, filename, lineno, identifier):
+        Identifier.__init__(self, filename, lineno, identifier)
+
+    def __repr__(self):
+        return "<StateIdentifier: identifier = %s, entity = %s>" % \
+               (self.identifier.__repr__(),
+                super(Identifier, self).__repr__())
+
 class Expression(Entity):
     def __init__(self, filename, lineno, parent_expr = None):
         Entity.__init__(self, filename, lineno)
@@ -228,6 +237,26 @@ class WireTupleExpression(Expression):
                (self.top_mapping.__repr__(),
                 self.bottom_mapping.__repr__(),
                 super(WireTupleExpression, self).__repr__())
+
+class IfExpression(Expression):
+    def __init__(self, filename, lineno, conditional_expr, then_expr, else_expr):
+        Expression.__init__(self, filename, lineno)
+        self.condition = conditional_expr
+        self.then = then_expr
+        self.else_ = else_expr
+
+    def accept(self, visitor):
+        self.then.accept(visitor)
+        self.else_.accept(visitor)
+        visitor.visit(self)
+        self.condition.accept(visitor)
+
+    def __repr__(self):
+        return "<IfExpression: conditional = %s, then = %s, else = %s, expression = %s>" % \
+               (self.condition.__repr__(),
+                self.then.__repr__(),
+                self.else_.__repr__(),
+                super(IfExpression, self).__repr__())
 
 class IdentifierExpression(Expression):
     def __init__(self, filename, lineno, identifier, parent = None):

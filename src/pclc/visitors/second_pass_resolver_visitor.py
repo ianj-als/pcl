@@ -19,6 +19,9 @@
 from multimethod import multimethod, multimethodclass
 from parser.import_spec import Import
 from parser.component import Component
+from parser.conditional_expressions import ConditionalExpression, \
+     UnaryConditionalExpression, \
+     TerminalConditionalExpression
 from parser.declaration import Declaration
 from parser.expressions import UnaryExpression, \
      BinaryExpression, \
@@ -31,20 +34,10 @@ from pypeline.core.types.nothing import Nothing
 from first_pass_resolver_visitor import FirstPassResolverVisitor, resolve_expression_once
 
 
-type_formatting_fn = lambda c: "(%s), (%s)" % (", ".join([i.identifier for i in c[0]]), \
-                                            ", ".join([i.identifier for i in c[1]])) \
-                    if isinstance(c, tuple) \
-                    else ", ".join([i.identifier for i in c])
-
-
 @multimethodclass
 class SecondPassResolverVisitor(FirstPassResolverVisitor):
-    def __init__(self,
-                 resolver_factory,
-                 pcl_import_path = []):
-        FirstPassResolverVisitor.__init__(self,
-                                          resolver_factory,
-                                          pcl_import_path)
+    def __init__(self):
+        FirstPassResolverVisitor.__init__(self, None)
 
     @multimethod(Import)
     def visit(self, an_import):
@@ -57,51 +50,6 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
     @multimethod(Declaration)
     def visit(self, decl):
         pass
-
-    @multimethod(object)
-    def visit(self, nowt):
-        # Root expression, so get inputs and outpus
-        # from module defined inputs and outputs clauses
-        expr = self._module.definition.definition
-        expected_fn = lambda e: Just((frozenset(e[0]), frozenset(e[1]))) \
-                      if isinstance(e, tuple) else Just(frozenset(e))
-
-        self._module.resolution_symbols['inputs'] = (Just(self._module.definition.inputs) >= expected_fn) >= \
-                                                    (lambda expected_inputs: expr.resolution_symbols['inputs'] >= \
-                                                     (lambda actual_inputs: self._errors.append("ERROR: %s at line %d, component " \
-                                                                                                "expects inputs %s, but got %s" % \
-                                                                                                (expr.filename, \
-                                                                                                 expr.lineno, \
-                                                                                                 type_formatting_fn(expected_inputs), \
-                                                                                                 type_formatting_fn(actual_inputs))) or Nothing() \
-                                                      if expected_inputs != actual_inputs else Just(actual_inputs)))
-        self._module.resolution_symbols['outputs'] = expected_fn(self._module.definition.outputs) >= \
-                                                     (lambda expected_outputs: expr.resolution_symbols['outputs'] >= \
-                                                      (lambda actual_outputs: self._errors.append("ERROR: %s at line %d, component " \
-                                                                                                  "expects outputs %s, but got %s" % \
-                                                                                                  (expr.filename, \
-                                                                                                   expr.lineno, \
-                                                                                                   type_formatting_fn(expected_outputs), \
-                                                                                                   type_formatting_fn(actual_outputs))) or Nothing() \
-                                                       if expected_outputs != actual_outputs else Just(actual_outputs)))
-
-    @multimethod(CompositionExpression)
-    def visit(self, comp_expr):
-        # Check that the composing components are output/input
-        # compatible
-        left_outputs = comp_expr.left.resolution_symbols['outputs']
-        right_inputs = comp_expr.right.resolution_symbols['inputs']
-        if left_outputs != right_inputs or left_outputs is Nothing() or right_inputs is Nothing():
-            self._errors.append("ERROR: %s at line %d, attempted composition " \
-                                "with incompatible components:\n\texpected %s\n\tgot %s" % \
-                                (comp_expr.filename,
-                                 comp_expr.lineno,
-                                 left_outputs >= type_formatting_fn,
-                                 right_inputs >= type_formatting_fn))
-
-        # Update the inputs and outputs for this composed component
-        comp_expr.resolution_symbols['inputs'] = comp_expr.left.resolution_symbols['inputs']
-        comp_expr.resolution_symbols['outputs'] = comp_expr.right.resolution_symbols['outputs']
 
     def __derive_inputs(self, expr):
         return self.__walk_expression(expr.parent, expr)

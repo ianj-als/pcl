@@ -24,6 +24,17 @@ import sys
 from multimethod import multimethod, multimethodclass
 from parser.import_spec import Import
 from parser.component import Component
+from parser.conditional_expressions import AndConditionalExpression, \
+     OrConditionalExpression, \
+     XorConditionalExpression, \
+     EqualsConditionalExpression, \
+     NotEqualsConditionalExpression, \
+     GreaterThanConditionalExpression, \
+     LessThanConditionalExpression, \
+     GreaterThanEqualToConditionalExpression, \
+     LessThanEqualToConditionalExpression, \
+     UnaryConditionalExpression, \
+     TerminalConditionalExpression
 from parser.declaration import Declaration
 from parser.expressions import Literal, \
      Identifier, \
@@ -39,6 +50,7 @@ from parser.expressions import Literal, \
      MergeExpression, \
      WireExpression, \
      WireTupleExpression, \
+     IfExpression, \
      IdentifierExpression, \
      LiteralExpression
 from parser.mappings import Mapping, \
@@ -68,16 +80,14 @@ def resolve_expression_once(method):
 
 @multimethodclass
 class FirstPassResolverVisitor(ResolverVisitor):
-    def __init__(self,
-                 resolver_factory,
-                 pcl_import_path = []):
+    def __init__(self, pcl_import_path = []):
         ResolverVisitor.__init__(self)
-        self.__resolver_factory = resolver_factory
         self.__pcl_import_paths = list()
-        if pcl_import_path:
-            self.__pcl_import_paths.extend(pcl_import_path.split(":"))
-        self.__pcl_import_paths.append(".")
-        sys.path.extend(self.__pcl_import_paths)
+        if pcl_import_path is not None:
+            if pcl_import_path:
+                self.__pcl_import_paths.extend(pcl_import_path.split(":"))
+            self.__pcl_import_paths.append(".")
+            sys.path.extend(self.__pcl_import_paths)
 
     @staticmethod
     def __check_scalar_or_tuple_collection(collection):
@@ -573,6 +583,56 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
         wire_tuple_expr.resolution_symbols['inputs'] = Just((frozenset(top_inputs), frozenset(bottom_inputs)))
         wire_tuple_expr.resolution_symbols['outputs'] = Just((frozenset(top_outputs), frozenset(bottom_outputs)))
+
+    @multimethod(IfExpression)
+    @resolve_expression_once
+    def visit(self, if_expr):
+        if_expr.resolution_symbols['inputs'] = Nothing()
+        if_expr.resolution_symbols['outputs'] = Nothing()
+
+    @multimethod(AndConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(OrConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(XorConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(EqualsConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(NotEqualsConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(GreaterThanConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(LessThanConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(GreaterThanEqualToConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(LessThanEqualToConditionalExpression)
+    def visit(self, cond_expr):
+        pass
+
+    @multimethod(UnaryConditionalExpression)
+    def visit(self, unary_cond_expr):
+        pass
+
+    @multimethod(TerminalConditionalExpression)
+    def visit(self, term_cond_expr):
+        pass
 
     @multimethod(Mapping)
     def visit(self, mapping):

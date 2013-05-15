@@ -25,8 +25,20 @@ from pcl_lexer import tokens, PCLLexer
 from import_spec import Import
 from component import Component
 from declaration import Declaration
+from conditional_expressions import AndConditionalExpression, \
+     OrConditionalExpression, \
+     XorConditionalExpression, \
+     EqualsConditionalExpression, \
+     NotEqualsConditionalExpression, \
+     GreaterThanConditionalExpression, \
+     LessThanConditionalExpression, \
+     GreaterThanEqualToConditionalExpression, \
+     LessThanEqualToConditionalExpression, \
+     UnaryConditionalExpression, \
+     TerminalConditionalExpression
 from expressions import Literal, \
      Identifier, \
+     StateIdentifier, \
      UnaryExpression, \
      CompositionExpression, \
      ParallelWithTupleExpression, \
@@ -37,6 +49,7 @@ from expressions import Literal, \
      MergeExpression, \
      WireExpression, \
      WireTupleExpression, \
+     IfExpression, \
      IdentifierExpression, \
      LiteralExpression
 from mappings import Mapping, \
@@ -143,11 +156,11 @@ def p_mapping(p):
     p[0] = Mapping(p.parser.filename, p[1].lineno, p[1], p[3])
 
 def p_component_body(p):
-    '''component_body_expression : expression'''
+    '''component_body_expression : arrow_expression'''
     p[0] = p[1]
 
-def p_expression(p):
-    '''expression : composition_expression'''
+def p_arrow_expression(p):
+    '''arrow_expression : composition_expression'''
     p[0] = p[1]
 
 def p_composition_expression(p):
@@ -180,20 +193,21 @@ def p_unary_expression(p):
                         | split_expression
                         | merge_expression
                         | wire_expression
+                        | if_expression
                         | identifier_expression
                         | literal_expression
-                        | '(' expression ')' '''
+                        | '(' arrow_expression ')' '''
     if len(p) > 2:
         p[0] = UnaryExpression(p.parser.filename, p[2].lineno, p[2])
     else:
         p[0] = p[1]
 
 def p_first_expression(p):
-    '''first_expression : FIRST expression %prec UNARY'''
+    '''first_expression : FIRST arrow_expression %prec UNARY'''
     p[0] = FirstExpression(p.parser.filename, p.lineno(1), p[2])
 
 def p_second_expression(p):
-     '''second_expression : SECOND expression %prec UNARY'''
+     '''second_expression : SECOND arrow_expression %prec UNARY'''
      p[0] = SecondExpression(p.parser.filename, p.lineno(1), p[2])
 
 def p_split_expression(p):
@@ -214,6 +228,10 @@ def p_wire_expression(p):
                                    p.lineno(1),
                                    tuple(p[3]),
                                    tuple(p[7]))
+
+def p_if_expression(p):
+    '''if_expression : IF conditional_expression arrow_expression arrow_expression'''
+    p[0] = IfExpression(p.parser.filename, p.lineno(1), p[2], p[3], p[4])
 
 def p_identifier_expression(p):
     '''identifier_expression : identifier_or_qual_identifier'''
@@ -254,6 +272,91 @@ def p_wire_mapping(p):
     '''wire_mapping : identifier_or_qual_identifier MAPS_TO identifier_or_qual_identifier'''
     p[0] = Mapping(p.parser.filename, p[1].lineno, p[1], p[3])
 
+def p_conditional_expression(p):
+    '''conditional_expression : or_conditional_expression'''
+    p[0] = p[1]
+
+def p_or_conditional_expression(p):
+    '''or_conditional_expression : and_conditional_expression
+                                 | or_conditional_expression OR and_conditional_expression'''
+    if len(p) > 2:
+        p[0] = OrConditionalExpression(p.parser.filename, p.lineno(2), p[1], p[3])
+    else:
+        p[0] = p[1]
+
+def p_and_conditional_expression(p):
+    '''and_conditional_expression : xor_conditional_expression
+                                  | and_conditional_expression AND xor_conditional_expression'''
+    if len(p) > 2:
+        p[0] = AndConditionalExpression(p.parser.filename, p.lineno(2), p[1], p[3])
+    else:
+        p[0] = p[1]
+
+def p_xor_conditional_expression(p):
+    '''xor_conditional_expression : equals_conditional_expression
+                                  | xor_conditional_expression XOR equals_conditional_expression'''
+    if len(p) > 2:
+        p[0] = XorConditionalExpression(p.parser.filename, p.lineno(2), p[1], p[3])
+    else:
+        p[0] = p[1]
+
+def p_equals_conditional_expression(p):
+    '''equals_conditional_expression : not_equals_conditional_expression
+                                     | equals_conditional_expression EQUALS not_equals_conditional_expression'''
+    if len(p) > 2:
+        p[0] = EqualsConditionalExpression(p.parser.filename, p.lineno(2), p[1], p[3])
+    else:
+        p[0] = p[1]
+
+def p_not_equals_conditional_expression(p):
+    '''not_equals_conditional_expression : greater_than_conditional_expression
+                                         | not_equals_conditional_expression NOT_EQUALS greater_than_conditional_expression'''
+    if len(p) > 2:
+        p[0] = NotEqualsConditionalExpression(p.parser.filename, p.lineno(2), p[1], p[3])
+    else:
+        p[0] = p[1]
+
+def p_greater_than_conditional_expression(p):
+    '''greater_than_conditional_expression : less_than_conditional_expression
+                                           | greater_than_conditional_expression GT less_than_conditional_expression'''
+    if len(p) > 2:
+        p[0] = GreaterThanConditionalExpression(p.parser.filename, p.lineno(2), p[1], p[3])
+    else:
+        p[0] = p[1]
+
+def p_less_than_conditional_expression(p):
+    '''less_than_conditional_expression : greater_than_equal_conditional_expression
+                                        | less_than_conditional_expression LT greater_than_conditional_expression'''
+    if len(p) > 2:
+        p[0] = LessThanConditionalExpression(p.parser.filename, p.lineno(2), p[1], p[3])
+    else:
+        p[0] = p[1]
+
+def p_greater_than_equal_conditional_expression(p):
+    '''greater_than_equal_conditional_expression : less_than_equal_condition_expression
+                                                 | greater_than_equal_conditional_expression G_EQUAL less_than_conditional_expression'''
+    if len(p) > 2:
+        p[0] = GreaterThanEqualToConditionalExpression(p.parser.filename, p.lineno(2), p[1], p[3])
+    else:
+        p[0] = p[1]
+
+def p_less_than_equal_condition_expression(p):
+    '''less_than_equal_condition_expression : unary_conditional_expression
+                                            | less_than_conditional_expression L_EQUAL unary_conditional_expression'''
+    if len(p) > 2:
+        p[0] = LessThanEqualToConditionalExpression(p.parser.filename, p.lineno(2), p[1], p[3])
+    else:
+        p[0] = p[1]
+
+def p_unary_conditional_expression(p):
+    '''unary_conditional_expression : identifier_or_literal
+                                    | state_identifier
+                                    | '(' conditional_expression ')' '''
+    if len(p) > 2:
+        p[0] = UnaryConditionalExpression(p.parser.filename, p[2].lineno, p[2])
+    else:
+        p[0] = TerminalConditionalExpression(p[1])
+
 def p_scalar_or_tuple_identifier_comma_list(p):
     '''scalar_or_tuple_identifier_comma_list : '(' identifier_comma_list ')' ',' '(' identifier_comma_list ')'
                                              | identifier_comma_list'''
@@ -275,6 +378,10 @@ def p_identifier_or_literal(p):
                              | literal'''
     p[0] = p[1]
 
+def p_state_identifier(p):
+    '''state_identifier : '@' identifier_or_qual_identifier'''
+    p[0] = StateIdentifier(p.parser.filename, p[2].lineno, p[2].identifier)
+
 def p_identifier_or_qual_identifier(p):
     '''identifier_or_qual_identifier : IDENTIFIER
                                      | QUALIFIED_IDENTIFIER'''
@@ -283,7 +390,8 @@ def p_identifier_or_qual_identifier(p):
 def p_literal(p):
     '''literal : INTEGER
                | FLOAT
-               | STRING'''
+               | STRING
+               | BOOLEAN'''
     p[0] = Literal(p.parser.filename, p.lineno(1), p[1])
 
 recovery_tokens = (')',
@@ -319,30 +427,3 @@ class PCLParser(object):
         return self.__parser.parse(input = f.read(),
                                    lexer = self.__lexer,
                                    debug = self.__logger)
-
-if __name__ == '__main__':
-    lexer = PCLLexer(debug = 1)
-    parser = yacc.yacc()
-    parser.filename = "internal"
-    component = parser.parse(
-        input = '''
-        import a.b.c as d
-        import e.f.g as h
-        component i
-          inputs a,b,c
-          output (a,b,c)
-          configuration a,b,c,d
-          declare
-            a := new i
-            b := new j with a -> b, c -> d
-            irstlm := new lang_model with
-              a -> b,
-              b -> c,
-              c -> d
-          as
-          a >>> b &&& c *** a >>> wire a -> b, d -> c >>> first (split >>> f >>> merge top[d] -> g, bottom[d] -> f)''',
-        lexer = lexer,
-        debug = 1)
-    if component:
-        print "Imports: [%s], Component def: [%s]" % \
-              (", ".join([str(e) for e in component['imports']]), component['definition'])

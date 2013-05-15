@@ -27,6 +27,7 @@ import ply.lex as lex
 # Reserved words
 #
 reserved = {
+    'and' : 'AND',
     'as' : 'AS',
     'bottom' : 'BOTTOM',
     'component' : 'COMPONENT',
@@ -34,27 +35,34 @@ reserved = {
     'declare' : 'DECLARE',
     'first' : 'FIRST',
     'import' : 'IMPORT',
+    'if' : 'IF',
     'input' : 'INPUTS',
     'inputs' : 'INPUTS',
     'merge' : 'MERGE',
     'new' : 'NEW',
+    'or' : 'OR',
     'output' : 'OUTPUTS',
     'outputs' : 'OUTPUTS',
     'second' : 'SECOND',
     'split' : 'SPLIT',
     'top' : 'TOP',
     'wire' : 'WIRE',
-    'with' : 'WITH'}
+    'with' : 'WITH',
+    'xor' : 'XOR'}
 
 #
 # Tokens
 #
 tokens = [
     'ASSIGN',
+    'EQUALS',
+    'NOT_EQUALS',
+    'GT', 'LT', 'G_EQUAL', 'L_EQUAL',
     'QUALIFIED_IDENTIFIER', 'IDENTIFIER',
     'COMPOSITION',
     'FLOAT',
     'INTEGER',
+    'BOOLEAN',
     'MAPS_TO',
     'PARALLEL_WITH_TUPLE',
     'PARALLEL_WITH_SCALAR',
@@ -67,6 +75,12 @@ class PCLLexer(object):
     literals = ",()[]"
 
     t_ASSIGN = r':='
+    t_EQUALS = r'=='
+    t_NOT_EQUALS = r'!="'
+    t_GT = r'>'
+    t_LT = r'<'
+    t_G_EQUAL = r'>='
+    t_L_EQUAL = r'<='
     t_COMPOSITION = r'>>>'
     t_MAPS_TO = r'->'
     t_PARALLEL_WITH_TUPLE = r'\*\*\*'
@@ -74,6 +88,11 @@ class PCLLexer(object):
 
     t_ignore_COMMENT = r'\#.*'
     t_ignore  = ' \t\r'
+
+    def t_BOOLEAN(self, t):
+        r'([Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])'
+        t.value = True if t.value.upper() == "TRUE" else False
+        return t
 
     def t_QUALIFIED_IDENTIFIER(self, t):
         r'([a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+)'
@@ -123,24 +142,3 @@ class PCLLexer(object):
 
     def getLexer(self):
         return self.__lexer
-
-
-if __name__ == "__main__":
-    lexer = PCLLexer(debug = 1)
-    lexer.input(r'''
-    import a.b.c as d
-    component e
-    inputs f, g
-    output h
-    configuration i,j,k,l
-    declare
-      a := new m with n -> o.p.q, r -> s
-      b := new t
-    as
-      (wire a -> b, c -> d &&& wire a -> b) >>>
-      merge top[a] -> b, -7 -> v, -7.9e-9 -> a, "h'e'\"l\"ox" -> b, "" -> u >>> v''')
-    while True:
-        token = lexer.token()
-        if not token:
-            break
-        print token

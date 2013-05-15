@@ -18,14 +18,14 @@
 #
 from visitors.first_pass_resolver_visitor import FirstPassResolverVisitor
 from visitors.second_pass_resolver_visitor import SecondPassResolverVisitor
+from visitors.third_pass_resolver_visitor import ThirdPassResolverVisitor
 
 
 class Resolver(object):
     def __init__(self, pcl_import_path):
-        self.__visitors = (FirstPassResolverVisitor(lambda pclip, pyip: Resolver(pclip, pyip),
-                                                    pcl_import_path),
-                           SecondPassResolverVisitor(lambda pclip, pyip: Resolver(pclip, pyip),
-                                                    pcl_import_path))
+        self.__visitors = (FirstPassResolverVisitor(pcl_import_path),
+                           SecondPassResolverVisitor(),
+                           ThirdPassResolverVisitor())
 
     def resolve(self, ast):
         for visitor in self.__visitors:

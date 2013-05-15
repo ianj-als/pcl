@@ -49,7 +49,7 @@ def multimethod(*types):
     return decorator
 
 #
-# Decorate the class whose methods a decorated with the multi-method decorator
+# Decorate the class whose methods are decorated with the multi-method decorator
 #
 def multimethodclass(klass):
     global class_registry

@@ -16,15 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
-component split_merge
-  inputs a, b
-  outputs e, f, g, h, i, j
+component conditional
+  inputs a
+  outputs z
   as
-    split >>>
-    (wire a -> c, b -> _ *** wire a -> _, b -> d) >>>
-    merge top[c] -> e,
-          bottom[d] -> f,
-          667 -> g,
-          -3.141 -> h,
-          "He\"llo 'World" -> i,
-          False -> j
+    if a == True
+       wire a -> z
+       wire a -> z
