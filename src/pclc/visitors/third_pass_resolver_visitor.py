@@ -19,7 +19,15 @@
 from multimethod import multimethod, multimethodclass
 from parser.import_spec import Import
 from parser.component import Component
-from parser.conditional_expressions import ConditionalExpression, \
+from parser.conditional_expressions import AndConditionalExpression, \
+     OrConditionalExpression, \
+     XorConditionalExpression, \
+     EqualsConditionalExpression, \
+     NotEqualsConditionalExpression, \
+     GreaterThanConditionalExpression, \
+     LessThanConditionalExpression, \
+     GreaterThanEqualToConditionalExpression, \
+     LessThanEqualToConditionalExpression, \
      UnaryConditionalExpression, \
      TerminalConditionalExpression
 from parser.declaration import Declaration
@@ -121,6 +129,46 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
 
         if_expr.resolution_symbols['inputs'] = then_inputs
         if_expr.resolution_symbols['outputs'] = then_outputs
+
+    @multimethod(AndConditionalExpression)
+    def visit(self, and_cond_expr):
+        pass
+
+    @multimethod(OrConditionalExpression)
+    def visit(self, or_cond_expr):
+        pass
+
+    @multimethod(XorConditionalExpression)
+    def visit(self, xor_cond_expr):
+        pass
+
+    @multimethod(EqualsConditionalExpression)
+    def visit(self, eq_cond_expr):
+        pass
+
+    @multimethod(NotEqualsConditionalExpression)
+    def visit(self, ne_cond_expr):
+        pass
+
+    @multimethod(GreaterThanConditionalExpression)
+    def visit(self, gt_cond_expr):
+        pass
+
+    @multimethod(LessThanConditionalExpression)
+    def visit(self, lt_cond_expr):
+        pass
+
+    @multimethod(GreaterThanEqualToConditionalExpression)
+    def visit(self, gte_cond_expr):
+        pass
+
+    @multimethod(LessThanEqualToConditionalExpression)
+    def visit(self, lte_cond_expr):
+        pass
+
+    @multimethod(UnaryConditionalExpression)
+    def visit(self, unary_cond_expr):
+        pass
 
     @multimethod(TerminalConditionalExpression)
     def visit(self, term_cond_expr):

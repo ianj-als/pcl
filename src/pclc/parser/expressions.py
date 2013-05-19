@@ -19,6 +19,7 @@
 from entity import Entity
 
 from mappings import TopMapping, BottomMapping, LiteralMapping
+from pypeline.core.types.just import Just
 
 
 class Literal(Entity):
@@ -244,6 +245,10 @@ class IfExpression(Expression):
         self.condition = conditional_expr
         self.then = then_expr
         self.else_ = else_expr
+
+    def get_available_inputs(self):
+        return self.then.resolution_symbols['inputs'] >= (lambda tins: self.else_.resolution_symbols['inputs'] >= \
+                                                          (lambda eins: Just(tins.union(eins))))
 
     def accept(self, visitor):
         self.then.accept(visitor)

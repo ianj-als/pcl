@@ -22,7 +22,8 @@ import os
 from multimethod import multimethod, multimethodclass
 from parser.import_spec import Import
 from parser.component import Component
-from parser.conditional_expressions import AndConditionalExpression, \
+from parser.conditional_expressions import ConditionalExpression, \
+     AndConditionalExpression, \
      OrConditionalExpression, \
      XorConditionalExpression, \
      EqualsConditionalExpression, \
@@ -36,6 +37,7 @@ from parser.conditional_expressions import AndConditionalExpression, \
 from parser.declaration import Declaration
 from parser.expressions import Literal, \
      Identifier, \
+     StateIdentifier, \
      Expression, \
      UnaryExpression, \
      CompositionExpression, \
@@ -68,7 +70,9 @@ class ExecutorVisitor(object):
                "#\n" \
                "from pypeline.helpers.parallel_helpers import cons_function_component, cons_wire, cons_dictionary_wire, cons_split_wire, cons_unsplit_wire\n" \
                "from pypeline.core.arrows.kleisli_arrow import KleisliArrow\n" \
-               "from pypeline.core.arrows.kleisli_arrow_choice import KleisliArrowChoice\n"
+               "from pypeline.core.arrows.kleisli_arrow_choice import KleisliArrowChoice\n" \
+               "from pypeline.core.types.either import Left, Right\n" \
+               "from pypeline.core.types.state import return_\n"
     __TEMP_VAR = "____tmp_%d"
 
     def __init__(self, filename_root):
@@ -83,6 +87,15 @@ class ExecutorVisitor(object):
         header_args = {'datetime' : \
                        datetime.datetime.now().strftime("%A %d %B %Y at %H:%M:%S")}
         self.__write_line(ExecutorVisitor.__HEADER % header_args)
+        self.__conditional_operators = {AndConditionalExpression : 'and',
+                                        OrConditionalExpression : 'or',
+                                        XorConditionalExpression : '^',
+                                        EqualsConditionalExpression : '==',
+                                        NotEqualsConditionalExpression : '!=',
+                                        GreaterThanConditionalExpression : '>',
+                                        LessThanConditionalExpression : '<',
+                                        GreaterThanEqualToConditionalExpression : '>=',
+                                        LessThanEqualToConditionalExpression : '<='}
 
     @multimethod(Module)
     def visit(self, module):
@@ -131,6 +144,33 @@ class ExecutorVisitor(object):
 
     def __lookup_var(self, expr):
         return self._var_table[expr]
+
+    def __generate_condition(self, cond_expr):
+        # Terminal!
+        if isinstance(cond_expr, TerminalConditionalExpression):
+            terminal = cond_expr.terminal
+            if isinstance(terminal, StateIdentifier):
+                return "s['%s']" % terminal
+            elif isinstance(terminal, Identifier):
+                return "a['%s']" % terminal
+            elif isinstance(terminal, Literal):
+                return str(terminal)
+            else:
+                raise ValueError("Unexpected terminal in conditional: filename = %s, line no = %d" % \
+                                 (terminal.filename, terminal.lineno))
+        elif isinstance(cond_expr, ConditionalExpression):
+            left_code = self.__generate_condition(cond_expr.left)
+            right_code = self.__generate_condition(cond_expr.right)
+            op = self.__conditional_operators[cond_expr.__class__]
+            if isinstance(cond_expr, XorConditionalExpression):
+                left_code = "bool(%s)" % left_code
+                right_code = "bool(%s)" % right_code
+            return "(%s %s %s)" % (left_code, op, right_code)
+        elif isinstance(cond_expr, UnaryConditionExpress):
+            return "(%s)" % self.__generate_condition(cond_expr.expression)
+        else:
+            raise ValueError("Unexpected expression in conditional: filename = %s, line no = %d" % \
+                             (cond_expr.filename, cond_expr.lineno))
 
     @multimethod(Import)
     def visit(self, an_import):
@@ -302,42 +342,46 @@ class ExecutorVisitor(object):
 
     @multimethod(IfExpression)
     def visit(self, if_expr):
-        pass
+        self.__write_line("%s = ((cons_function_component(lambda a, s: %s) & cons_function_component(lambda a, s: a)) >> cons_function_component(lambda a, s: Left(a[1]) if a[0] else Right(a[1]))) >> (KleisliArrowChoice(return_, %s._func) | KleisliArrowChoice(return_, %s._func))" % \
+                          (self.__get_temp_var(if_expr),
+                           self.__generate_condition(if_expr.condition),
+                           self.__lookup_var(if_expr.then),
+                           self.__lookup_var(if_expr.else_)))
 
     @multimethod(AndConditionalExpression)
-    def visit(self, cond_expr):
+    def visit(self, and_cond_expr):
         pass
 
     @multimethod(OrConditionalExpression)
-    def visit(self, cond_expr):
+    def visit(self, or_cond_expr):
         pass
 
     @multimethod(XorConditionalExpression)
-    def visit(self, cond_expr):
+    def visit(self, xor_cond_expr):
         pass
 
     @multimethod(EqualsConditionalExpression)
-    def visit(self, cond_expr):
+    def visit(self, eq_cond_expr):
         pass
 
     @multimethod(NotEqualsConditionalExpression)
-    def visit(self, cond_expr):
+    def visit(self, ne_cond_expr):
         pass
 
     @multimethod(GreaterThanConditionalExpression)
-    def visit(self, cond_expr):
+    def visit(self, gt_cond_expr):
         pass
 
     @multimethod(LessThanConditionalExpression)
-    def visit(self, cond_expr):
+    def visit(self, lt_cond_expr):
         pass
 
     @multimethod(GreaterThanEqualToConditionalExpression)
-    def visit(self, cond_expr):
+    def visit(self, gte_cond_expr):
         pass
 
     @multimethod(LessThanEqualToConditionalExpression)
-    def visit(self, cond_expr):
+    def visit(self, lte_cond_expr):
         pass
 
     @multimethod(UnaryConditionalExpression)

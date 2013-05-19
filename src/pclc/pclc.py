@@ -19,6 +19,7 @@
 #
 import os
 import sys
+import traceback
 
 from optparse import OptionParser
 from parser.helpers import parse_component
@@ -88,6 +89,7 @@ if __name__ == '__main__':
     try:
         ast.accept(executor)
     except Exception as ex:
+        print traceback.format_exc()
         print "ERROR: Code generation failed: %s" % ex
         sys.exit(1)
 

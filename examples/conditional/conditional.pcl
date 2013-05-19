@@ -17,9 +17,13 @@
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
 component conditional
-  inputs a
+  inputs a, b, c
   outputs z
   as
     if a == True
-       wire a -> z
-       wire a -> z
+       wire b -> z,
+            a -> _,
+            c -> _
+       wire c -> z,
+            a -> _,
+            b -> _

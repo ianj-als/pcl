@@ -43,7 +43,7 @@ class ConditionalExpression(Entity):
         visitor.visit(self)
 
     def __str__(self):
-        return "%s %s %s" % (self.left, self.operator, self.right)
+        return "(%s %s %s)" % (self.left, self.operator, self.right)
 
     def __repr__(self):
         return "<ConditionalExpression: op = %s, left = %s, right = %s, entity = %s>" % \
@@ -112,3 +112,11 @@ class TerminalConditionalExpression(Entity):
 
     def accept(self, visitor):
         visitor.visit(self)
+
+    def __str__(self):
+        return str(self.terminal)
+
+    def __repr__(self):
+        return "<TerminalConditionalExpression: terminal = %s, entity = %s>" % \
+               (self.terminal.__repr__(),
+                super(TerminalConditionalExpression, self).__repr__())
