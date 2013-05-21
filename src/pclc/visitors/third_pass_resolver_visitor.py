@@ -60,23 +60,27 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
         expected_fn = lambda e: Just((frozenset(e[0]), frozenset(e[1]))) \
                       if isinstance(e, tuple) else Just(frozenset(e))
 
-        self._module.resolution_symbols['inputs'] = (Just(self._module.definition.inputs) >= expected_fn) >= \
+        self._module.resolution_symbols['inputs'] = expected_fn(self._module.definition.inputs) >= \
                                                     (lambda expected_inputs: expr.resolution_symbols['inputs'] >= \
-                                                     (lambda actual_inputs: self._errors.append("ERROR: %s at line %d, component " \
-                                                                                                "expects inputs %s, but got %s" % \
-                                                                                                (expr.filename, \
-                                                                                                 expr.lineno, \
-                                                                                                 type_formatting_fn(expected_inputs), \
-                                                                                                 type_formatting_fn(actual_inputs))) or Nothing() \
+                                                     (lambda actual_inputs: self._add_errors("ERROR: %(filename)s at line %(lineno)d, component " \
+                                                                                             "defines mismatched inputs:" \
+                                                                                             "\n\texpected %(expected)s\n\tgot %(got)s", \
+                                                                                             [expr],
+                                                                                             lambda e: {'filename' : e.filename, \
+                                                                                                        'lineno' : e.lineno, \
+                                                                                                        'expected' : type_formatting_fn(expected_inputs), \
+                                                                                                        'got' : type_formatting_fn(actual_inputs)}) or Nothing() \
                                                       if expected_inputs != actual_inputs else Just(actual_inputs)))
         self._module.resolution_symbols['outputs'] = expected_fn(self._module.definition.outputs) >= \
                                                      (lambda expected_outputs: expr.resolution_symbols['outputs'] >= \
-                                                      (lambda actual_outputs: self._errors.append("ERROR: %s at line %d, component " \
-                                                                                                  "expects outputs %s, but got %s" % \
-                                                                                                  (expr.filename, \
-                                                                                                   expr.lineno, \
-                                                                                                   type_formatting_fn(expected_outputs), \
-                                                                                                   type_formatting_fn(actual_outputs))) or Nothing() \
+                                                      (lambda actual_outputs: self._add_errors("ERROR: %(filename)s at line %(lineno)d, component " \
+                                                                                               "defines mismatched outputs:" \
+                                                                                               "\n\texpected %(expected)s\n\tgot %(got)s", \
+                                                                                               [expr],
+                                                                                               lambda e: {'filename' : e.filename, \
+                                                                                                          'lineno' : e.lineno, \
+                                                                                                          'expected' : type_formatting_fn(expected_outputs), \
+                                                                                                          'got' : type_formatting_fn(actual_outputs)}) or Nothing() \
                                                        if expected_outputs != actual_outputs else Just(actual_outputs)))
 
     @multimethod(CompositionExpression)
@@ -86,12 +90,13 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
         left_outputs = comp_expr.left.resolution_symbols['outputs']
         right_inputs = comp_expr.right.resolution_symbols['inputs']
         if left_outputs != right_inputs or left_outputs is Nothing() or right_inputs is Nothing():
-            self._errors.append("ERROR: %s at line %d, attempted composition " \
-                                "with incompatible components:\n\texpected %s\n\tgot %s" % \
-                                (comp_expr.filename,
-                                 comp_expr.lineno,
-                                 left_outputs >= type_formatting_fn,
-                                 right_inputs >= type_formatting_fn))
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, attempted composition " \
+                             "with incompatible components:\n\texpected %(expected)s\n\tgot %(got)s", \
+                             [comp_expr],
+                             lambda e: {'filename' : e.filename,
+                                        'lineno' : e.lineno,
+                                        'expected' : left_outputs >= type_formatting_fn,
+                                        'got' : right_inputs >= type_formatting_fn})
 
         # Update the inputs and outputs for this composed component
         comp_expr.resolution_symbols['inputs'] = comp_expr.left.resolution_symbols['inputs']
@@ -111,7 +116,7 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
 
         if then_inputs != else_inputs or then_inputs is Nothing() or else_inputs is Nothing():
             self._add_errors("ERROR: %(filename)s at line %(lineno)d, if components have mismatched " \
-                             "component inputs\n\tthen = %(then_inputs)s\n\telse = %(else_inputs)s",
+                             "component inputs:\n\tthen = %(then_inputs)s\n\telse = %(else_inputs)s",
                              [if_expr],
                              lambda i: {'filename' : i.filename,
                                         'lineno' : i.lineno,
@@ -120,7 +125,7 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
 
         if then_outputs != else_outputs or then_outputs is Nothing() or else_outputs is Nothing():
             self._add_errors("ERROR: %(filename)s at line %(lineno)d, if components have mismatched " \
-                             "component outputs\n\tthen = %(then_outputs)s\n\telse = %(else_outputs)s",
+                             "component outputs:\n\tthen = %(then_outputs)s\n\telse = %(else_outputs)s",
                              [if_expr],
                              lambda i: {'filename' : i.filename,
                                         'lineno' : i.lineno,
@@ -129,46 +134,6 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
 
         if_expr.resolution_symbols['inputs'] = then_inputs
         if_expr.resolution_symbols['outputs'] = then_outputs
-
-    @multimethod(AndConditionalExpression)
-    def visit(self, and_cond_expr):
-        pass
-
-    @multimethod(OrConditionalExpression)
-    def visit(self, or_cond_expr):
-        pass
-
-    @multimethod(XorConditionalExpression)
-    def visit(self, xor_cond_expr):
-        pass
-
-    @multimethod(EqualsConditionalExpression)
-    def visit(self, eq_cond_expr):
-        pass
-
-    @multimethod(NotEqualsConditionalExpression)
-    def visit(self, ne_cond_expr):
-        pass
-
-    @multimethod(GreaterThanConditionalExpression)
-    def visit(self, gt_cond_expr):
-        pass
-
-    @multimethod(LessThanConditionalExpression)
-    def visit(self, lt_cond_expr):
-        pass
-
-    @multimethod(GreaterThanEqualToConditionalExpression)
-    def visit(self, gte_cond_expr):
-        pass
-
-    @multimethod(LessThanEqualToConditionalExpression)
-    def visit(self, lte_cond_expr):
-        pass
-
-    @multimethod(UnaryConditionalExpression)
-    def visit(self, unary_cond_expr):
-        pass
 
     @multimethod(TerminalConditionalExpression)
     def visit(self, term_cond_expr):

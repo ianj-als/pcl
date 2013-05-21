@@ -145,7 +145,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
                     # Ensures we have imported an alias that is being used
                     # in this declaration
                     unknown_imports.append(decl.component_alias)
-                
+
                 # Ensure the 'from' end of a declaration mapping
                 # exits in the configuration
                 if decl.configuration_mappings:
@@ -200,8 +200,11 @@ class FirstPassResolverVisitor(ResolverVisitor):
         import_symbol_dict = an_import.module.resolution_symbols['imports']
         # Add, only uniquely aliased, Python modules to symbol table
         if import_symbol_dict.has_key(an_import.alias):
-            self._errors.append("ERROR: %s at line %d, duplicate import alias found %s" % \
-                                (an_import.filename, an_import.lineno, an_import.alias))
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, duplicate import alias found %(alias)s",
+                             [an_import],
+                             lambda i: {'filename' : i.filename,
+                                        'lineno' : i.lineno,
+                                        'alias' : i.alias})
         else:
             # Import the Python module
             module_spec = {'module_name_id' : an_import.module_name}
@@ -214,16 +217,13 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                          'configure',
                                                          'initialise'])
             except Exception as ie:
-                print "ERROR: %s at line %d, error importing module %s: %s" % \
-                      (an_import.filename,
-                       an_import.lineno,
-                       an_import.module_name,
-                       str(ie))
-                self._errors.append("ERROR: %s at line %d, error importing module %s: %s" % \
-                                    (an_import.filename,
-                                     an_import.lineno,
-                                     an_import.module_name,
-                                     str(ie)))
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, error importing " \
+                                 "module %(module_name)s: %(exception)s",
+                                 [an_import],
+                                 lambda i: {'filename' : i.filename,
+                                            'lineno' : i.lineno,
+                                            'module_name' : i.module_name,
+                                            'exception' : str(ie)})
 
             # Was the module imported?
             if imported_module:
@@ -232,40 +232,50 @@ class FirstPassResolverVisitor(ResolverVisitor):
                     get_inputs_fn = getattr(imported_module, 'get_inputs')
                 except AttributeError:
                     get_inputs_fn = lambda : []
-                    self._errors.append("ERROR: %s at line %d, imported Python module %s " \
-                                        "does not define get_inputs function" % \
-                                        (an_import.filename, an_import.lineno,
-                                         an_import.module_name))
+                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
+                                     "does not define get_inputs function",
+                                     [an_import],
+                                     lambda i: {'filename' : i.filename,
+                                                'lineno' : i.lineno,
+                                                'module' : i.module_name})
                 try:
                     get_outputs_fn = getattr(imported_module, 'get_outputs')
                 except AttributeError:
                     get_outputs_fn = lambda : []
-                    self._errors.append("ERROR: %s at line %d, imported Python module %s " \
-                                        "does not define get_outputs function" % \
-                                        (an_import.filename, an_import.lineno,
-                                         an_import.module_name))
+                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
+                                     "does not define get_outputs function",
+                                     [an_import],
+                                     lambda i: {'filename' : i.filename,
+                                                'lineno' : i.lineno,
+                                                'module' : i.module_name})
                 try:
                     get_configuration_fn = getattr(imported_module, 'get_configuration')
                 except AttributeError:
                     get_configuration_fn = lambda : []
-                    self._errors.append("ERROR: %s at line %d, imported Python module %s " \
-                                        "does not define get_configuration function" % \
-                                        (an_import.filename, an_import.lineno,
-                                         an_import.module_name))
+                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
+                                     "does not define get_configuration function",
+                                     [an_import],
+                                     lambda i: {'filename' : i.filename,
+                                                'lineno' : i.lineno,
+                                                'module' : i.module_name})
                 try:
                     configure_fn = getattr(imported_module, 'configure')
                 except AttributeError:
-                    self._errors.append("ERROR: %s at line %d, imported Python module %s " \
-                                        "does not define configure function" % \
-                                        (an_import.filename, an_import.lineno,
-                                         an_import.module_name))
+                    self._errors.append("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
+                                        "does not define configure function",
+                                        [an_import],
+                                        lambda i: {'filename' : i.filename,
+                                                'lineno' : i.lineno,
+                                                'module' : i.module_name})
                 try:
                     initialise_fn = getattr(imported_module, 'initialise')
                 except AttributeError:
-                    self._errors.append("ERROR: %s at line %d, imported Python module %s " \
-                                        "does not define initialise function" % \
-                                        (an_import.filename, an_import.lineno,
-                                         an_import.module_name))
+                    self._errors.append("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
+                                        "does not define initialise function",
+                                        [an_import],
+                                        lambda i: {'filename' : i.filename,
+                                                'lineno' : i.lineno,
+                                                'module' : i.module_name})
 
                 # Record stuff from the imported Python module
                 module_spec.update({'module' : imported_module,
@@ -382,13 +392,14 @@ class FirstPassResolverVisitor(ResolverVisitor):
         got_used_configuration = frozenset([m.to for m in decl.configuration_mappings])
         unused_configuration = expected_used_configuration - got_used_configuration
         if len(unused_configuration) > 0:
-            self._errors.append("ERROR: %(filename)s at line %(lineno)d, missing configuration in declaration " \
-                                "of component %(component)s with alias %(import_alias)s: %(missing)s" % \
-                                {'filename' : decl.filename,
-                                 'lineno' : decl.lineno,
-                                 'component' : decl.identifier,
-                                 'import_alias' : decl.component_alias,
-                                 'missing' : ", ".join([str(i) for i in unused_configuration])})
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, missing configuration in declaration " \
+                             "of component %(component)s with alias %(import_alias)s: %(missing)s",
+                             [decl],
+                             lambda d: {'filename' : d.filename,
+                                        'lineno' : d.lineno,
+                                        'component' : d.identifier,
+                                        'import_alias' : d.component_alias,
+                                        'missing' : ", ".join([str(i) for i in unused_configuration])})
 
         # Mark the declaration as not used, yet. ;)
         self._module.resolution_symbols['used_components'][decl.component_alias] = False
@@ -665,10 +676,11 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                      None,
                                                      [])]
         except KeyError:
-            self._errors.append("ERROR: %s at line %d, unknown component %s" % \
-                                (iden_expr.filename,
-                                 iden_expr.lineno,
-                                 iden_expr))
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown component %(expr)s",
+                             [iden_expr],
+                             lambda i: {'filename' : i.filename,
+                                        'lineno' : i.lineno,
+                                        'expr' : i})
             iden_expr.resolution_symbols['inputs'] = Nothing()
             iden_expr.resolution_symbols['outputs'] = Nothing()
             return
