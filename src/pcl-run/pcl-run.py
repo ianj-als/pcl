@@ -27,7 +27,7 @@ from pypeline.core.arrows.kleisli_arrow import KleisliArrow
 from pypeline.helpers.parallel_helpers import eval_pipeline, cons_function_component
 
 
-__VERSION = "1.0.1"
+__VERSION = "1.0.2"
 
 
 def get_configuration(section, config_key):
@@ -153,6 +153,6 @@ if __name__ == '__main__':
     executor = ThreadPoolExecutor(max_workers = options.no_workers)
     print >> sys.stderr, "Evaluating pipeline..."
     try:
-        print eval_pipeline(executor, pipeline, pipeline_inputs, None)
+        print >> sys.stdout, eval_pipeline(executor, pipeline, pipeline_inputs, configuration)
     finally:
         executor.shutdown(True)

@@ -38,6 +38,7 @@ from parser.conditional_expressions import AndConditionalExpression, \
 from parser.declaration import Declaration
 from parser.expressions import Literal, \
      Identifier, \
+     StateIdentifier, \
      Expression, \
      UnaryExpression, \
      BinaryExpression, \
@@ -167,7 +168,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
         duplicate_declarations = filter(lambda de: dups[de] > 1, dups)
 
         return (tuple(missing_config),
-                tuple(unused_config),
+                set(unused_config),
                 tuple(unknown_imports),
                 tuple(duplicate_declarations),
                 tuple(unknown_module_configuration),
@@ -192,7 +193,8 @@ class FirstPassResolverVisitor(ResolverVisitor):
             self._module.resolution_symbols = {'imports' : dict(),
                                                'components' : dict(),
                                                'used_components' : dict(),
-                                               'configuration' : dict()}
+                                               'configuration' : dict(),
+                                               'unused_configuration' : list()}
 
     @multimethod(Import)
     def visit(self, an_import):
@@ -306,82 +308,67 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
         # Check that all the used configuration in declarations exist, and is used
         missing_configuration, \
-        unused_configuration, \
+        self._module.resolution_symbols['unused_configuration'], \
         unknown_imports, \
         duplicate_declarations, \
         unknown_module_configuration, \
         python_module_interace = FirstPassResolverVisitor.__check_declarations(component.configuration,
                                                                                component.declarations,
                                                                                component.module.resolution_symbols['imports'])
-        if duplicate_inputs or \
-           duplicate_outputs or \
-           duplicate_config or \
-           duplicate_decl_identifiers or \
-           missing_configuration or \
-           unused_configuration or \
-           unknown_imports or \
-           duplicate_declarations or \
-           unknown_module_configuration or \
-           python_module_interace:
-            self._add_errors("ERROR: %(filename)s at line %(lineno)d, input " \
-                             "declaration contains duplicate identifier %(entity)s",
-                             duplicate_inputs,
-                             lambda e: {'entity' : e,
-                                        'filename' : e.filename,
-                                        'lineno' : e.lineno})
-            self._add_errors("ERROR: %(filename)s at line %(lineno)d, output " \
-                             "declaration contains duplicate identifier %(entity)s",
-                             duplicate_outputs,
-                             lambda e: {'entity' : e,
-                                        'filename' : e.filename,
-                                        'lineno' : e.lineno})
-            self._add_errors("ERROR: %(filename)s at line %(lineno)d, configuration " \
-                             "declaration contains duplicate identifier %(entity)s",
-                             duplicate_config,
-                             lambda e: {'entity' : e,
-                                        'filename' : e.filename,
-                                        'lineno' : e.lineno})
-            self._add_errors("ERROR: %(filename)s at line %(lineno)d, component " \
-                             "declaration contains duplicate identifier %(entity)s",
-                             duplicate_decl_identifiers,
-                             lambda e: {'entity' : e,
-                                        'filename' : e.filename,
-                                        'lineno' : e.lineno})
-            self._add_errors("ERROR: %(filename)s at line %(lineno)d, component " \
-                             "configuration does not exist %(entity)s",
-                             missing_configuration,
-                             lambda e: {'entity' : e,
-                                        'filename' : e.filename,
-                                        'lineno' : e.lineno})
-            self._add_warnings("WARNING: %(filename)s at line %(lineno)d, component " \
-                               "configuration is not used %(entity)s",
-                               unused_configuration,
-                               lambda e: {'entity' : e,
-                                          'filename' : e.filename,
-                                          'lineno' : e.lineno})
-            self._add_errors("ERROR: %(filename)s at line %(lineno)d, import not found " \
-                             "in declaration of %(entity)s",
-                             unknown_imports,
-                             lambda e: {'entity' : e,
-                                        'filename' : e.filename,
-                                        'lineno' : e.lineno})
-            self._add_errors("ERROR: %(filename)s at line %(lineno)d, duplicate declaration " \
-                             "found %(entity)s",
-                             duplicate_declarations,
-                             lambda e: {'entity' : e,
-                                        'filename' : e.filename,
-                                        'lineno' : e.lineno})
-            self._add_errors("ERROR: %(filename)s at line %(lineno)d, configuration %(entity)s " \
-                             "used which is not defined in module %(module_name)s",
-                             unknown_module_configuration,
-                             lambda e: {'entity' : e['config_map'].to,
-                                        'module_name' : e['module_name'],
-                                        'filename' : e['config_map'].filename,
-                                        'lineno' : e['config_map'].lineno})
-            self._add_errors("ERROR: Python module %(module_name)s does not define " \
-                             "mandatory function %(missing_function)s",
-                             python_module_interace,
-                             lambda e: e)
+
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, input " \
+                         "declaration contains duplicate identifier %(entity)s",
+                         duplicate_inputs,
+                         lambda e: {'entity' : e,
+                                    'filename' : e.filename,
+                                    'lineno' : e.lineno})
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, output " \
+                         "declaration contains duplicate identifier %(entity)s",
+                         duplicate_outputs,
+                         lambda e: {'entity' : e,
+                                    'filename' : e.filename,
+                                    'lineno' : e.lineno})
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, configuration " \
+                         "declaration contains duplicate identifier %(entity)s",
+                         duplicate_config,
+                         lambda e: {'entity' : e,
+                                    'filename' : e.filename,
+                                    'lineno' : e.lineno})
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, component " \
+                         "declaration contains duplicate identifier %(entity)s",
+                         duplicate_decl_identifiers,
+                         lambda e: {'entity' : e,
+                                    'filename' : e.filename,
+                                    'lineno' : e.lineno})
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, component " \
+                         "configuration does not exist %(entity)s",
+                         missing_configuration,
+                         lambda e: {'entity' : e,
+                                    'filename' : e.filename,
+                                    'lineno' : e.lineno})
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, import not found " \
+                         "in declaration of %(entity)s",
+                         unknown_imports,
+                         lambda e: {'entity' : e,
+                                    'filename' : e.filename,
+                                    'lineno' : e.lineno})
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, duplicate declaration " \
+                         "found %(entity)s",
+                         duplicate_declarations,
+                         lambda e: {'entity' : e,
+                                    'filename' : e.filename,
+                                    'lineno' : e.lineno})
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, configuration %(entity)s " \
+                         "used which is not defined in module %(module_name)s",
+                         unknown_module_configuration,
+                         lambda e: {'entity' : e['config_map'].to,
+                                    'module_name' : e['module_name'],
+                                    'filename' : e['config_map'].filename,
+                                    'lineno' : e['config_map'].lineno})
+        self._add_errors("ERROR: Python module %(module_name)s does not define " \
+                         "mandatory function %(missing_function)s",
+                         python_module_interace,
+                         lambda e: e)
 
     @multimethod(Declaration)
     def visit(self, decl):
@@ -417,6 +404,12 @@ class FirstPassResolverVisitor(ResolverVisitor):
                            lambda e: {'filename' : e.filename,
                                       'lineno' : e.lineno,
                                       'component' : e})
+        self._add_warnings("WARNING: %(filename)s at line %(lineno)d, component " \
+                           "configuration %(entity)s is not used",
+                           self._module.resolution_symbols['unused_configuration'],
+                           lambda e: {'entity' : e,
+                                      'filename' : e.filename,
+                                      'lineno' : e.lineno})
 
     @multimethod(UnaryExpression)
     def visit(self, unary_expr):
@@ -643,7 +636,10 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(TerminalConditionalExpression)
     def visit(self, term_cond_expr):
-        pass
+        terminal = term_cond_expr.terminal
+        if isinstance(terminal, StateIdentifier) and \
+           terminal in self._module.resolution_symbols['unused_configuration']:
+            self._module.resolution_symbols['unused_configuration'].remove(terminal)
 
     @multimethod(Mapping)
     def visit(self, mapping):

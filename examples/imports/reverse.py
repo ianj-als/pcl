@@ -16,15 +16,28 @@
 # You should have received a copy of the GNU General Public License
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
-component conditional
-  inputs a, b, c
-  outputs z
-  configuration f
-  as
-    if a == True and @f == False
-       wire b -> z,
-            a -> _,
-            c -> _
-       wire c -> z,
-            a -> _,
-            b -> _
+from pypeline.helpers.parallel_helpers import cons_function_component, cons_if_component
+
+
+def get_name():
+  return 'reverse'
+
+def get_inputs():
+  return ['string']
+
+def get_outputs():
+  return ['gnirts']
+
+def get_configuration():
+  return ['upper_case']
+
+def configure(args):
+  return dict()
+
+def initialise(config):
+  reverse_comp = cons_function_component(lambda a, s: {'gnirts' : a['string'][::-1]})
+  if_comp = cons_if_component(lambda a, s: True if s['upper_case'] else False,
+                              cons_function_component(lambda a, s: {'gnirts' : a['gnirts'].upper()}),
+                              cons_function_component(lambda a, s: a))
+
+  return reverse_comp >> if_comp

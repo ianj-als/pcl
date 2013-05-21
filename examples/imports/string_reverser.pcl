@@ -16,15 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
-component conditional
-  inputs a, b, c
-  outputs z
-  configuration f
+import reverse as reverse
+import lowercase as lowercase
+
+component string_reverser
+  inputs input_string
+  output output_string
+  configuration string_is_upper_cased
+  declare
+    reverse := new reverse with string_is_upper_cased -> upper_case
+    lowercase := new lowercase
   as
-    if a == True and @f == False
-       wire b -> z,
-            a -> _,
-            c -> _
-       wire c -> z,
-            a -> _,
-            b -> _
+    wire input_string -> string >>> lowercase >>> reverse >>> wire gnirts -> output_string

@@ -135,7 +135,7 @@ def p_declaration(p):
                        p.lineno(1),
                        Identifier(p.parser.filename, p.lineno(1), p[1]),
                        Identifier(p.parser.filename, p.lineno(4), p[4]),
-                       p[5])
+                       p[5] if p[5] else list())
 
 def p_opt_with_clause(p):
     '''opt_with_clause : WITH configuration_mappings

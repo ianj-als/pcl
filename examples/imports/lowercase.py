@@ -16,15 +16,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
-component conditional
-  inputs a, b, c
-  outputs z
-  configuration f
-  as
-    if a == True and @f == False
-       wire b -> z,
-            a -> _,
-            c -> _
-       wire c -> z,
-            a -> _,
-            b -> _
+def get_name():
+  return 'lowercase'
+
+def get_inputs():
+  return ['string']
+
+def get_outputs():
+  return ['string']
+
+def get_configuration():
+  return []
+
+def configure(args):
+  return dict()
+
+def initialise(config):
+  return lambda a, s: {'string' : a['string'].lower()}

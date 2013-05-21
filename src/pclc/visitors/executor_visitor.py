@@ -227,12 +227,26 @@ class ExecutorVisitor(object):
                                                             else m.literal) \
                                                            for cm in decl.configuration_mappings]))) \
                                      for decl in self._module.resolution_symbols['components']]
+        # Guard against a module returning a non-Kleisli arrow type from initialise
         component_decl_guards = ["%(id)s = %(id)s " \
                                  "if isinstance(%(id)s, KleisliArrow) " \
                                  "else cons_function_component(%(id)s)" % \
                                  {'id' : decl.identifier} \
                                  for decl in self._module.resolution_symbols['components']]
-        initialise_fn = [t for pair in zip(component_initialisations, component_decl_guards) for t in pair]
+        # Wrap this component with any state conversion components
+        state_wrappers = ["%(id)s = ((cons_function_component(lambda a, s: a, state_mutator = lambda s: {%(state)s, '____prev_' : s})) >> %(id)s) >> cons_function_component(lambda a, s: a, state_mutator = lambda s: s['____prev_'])" % \
+                          {'id' : decl.identifier,
+                           'state' : "%s" % (", ".join(["'%s' : %s" % \
+                                                        (cm.to, \
+                                                        "s['%s']" % cm.from_ \
+                                                        if isinstance(cm.from_, Identifier) \
+                                                        else cm.from_.value.__repr__() \
+                                                        if isinstance(cm.from_.value, str) \
+                                                        else m.literal) \
+                                                        for cm in decl.configuration_mappings]))} if decl.configuration_mappings else ""
+                          for decl in self._module.resolution_symbols['components']]
+        # 
+        initialise_fn = [t for triple in zip(component_initialisations, component_decl_guards, state_wrappers) for t in triple]
         # Store variables in variable table
         for decl in self._module.resolution_symbols['components']:
             self._var_table[IdentifierExpression(None,

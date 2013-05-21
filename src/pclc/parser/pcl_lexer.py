@@ -72,7 +72,7 @@ tokens = [
 class PCLLexer(object):
     tokens = tokens
 
-    literals = ",()[]"
+    literals = ",()[]@"
 
     t_ASSIGN = r':='
     t_EQUALS = r'=='

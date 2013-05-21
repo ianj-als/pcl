@@ -51,6 +51,10 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
     def visit(self, decl):
         pass
 
+    @multimethod(object)
+    def visit(self, nowt):
+        pass
+
     def __derive_inputs(self, expr):
         return self.__walk_expression(expr.parent, expr)
 
@@ -114,3 +118,7 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
         inputs = self.__derive_inputs(split_expr)
         split_expr.resolution_symbols['inputs'] = inputs
         split_expr.resolution_symbols['outputs'] = inputs >= (lambda ins: Just((ins, ins)))
+
+    @multimethod(TerminalConditionalExpression)
+    def visit(self, term_cond_expr):
+        pass
