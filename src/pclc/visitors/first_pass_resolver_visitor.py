@@ -219,6 +219,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                          'configure',
                                                          'initialise'])
             except Exception as ie:
+                print str(ie), type(ie)
                 self._add_errors("ERROR: %(filename)s at line %(lineno)d, error importing " \
                                  "module %(module_name)s: %(exception)s",
                                  [an_import],
@@ -227,13 +228,17 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                             'module_name' : i.module_name,
                                             'exception' : str(ie)})
 
+            # Default, or dummy, functions
+            get_inputs_fn = lambda : []
+            get_outputs_fn = lambda : []
+            get_configuration_fn = lambda : []
+
             # Was the module imported?
             if imported_module:
                 # Yes!
                 try:
                     get_inputs_fn = getattr(imported_module, 'get_inputs')
                 except AttributeError:
-                    get_inputs_fn = lambda : []
                     self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
                                      "does not define get_inputs function",
                                      [an_import],
@@ -243,7 +248,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
                 try:
                     get_outputs_fn = getattr(imported_module, 'get_outputs')
                 except AttributeError:
-                    get_outputs_fn = lambda : []
                     self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
                                      "does not define get_outputs function",
                                      [an_import],
@@ -253,7 +257,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
                 try:
                     get_configuration_fn = getattr(imported_module, 'get_configuration')
                 except AttributeError:
-                    get_configuration_fn = lambda : []
                     self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
                                      "does not define get_configuration function",
                                      [an_import],
@@ -282,6 +285,11 @@ class FirstPassResolverVisitor(ResolverVisitor):
                 # Record stuff from the imported Python module
                 module_spec.update({'module' : imported_module,
                                     'get_inputs_fn' : get_inputs_fn,
+                                    'get_outputs_fn' : get_outputs_fn,
+                                    'get_configuration_fn' : get_configuration_fn})
+            else:
+                # Record a dummy module
+                module_spec.update({'get_inputs_fn' : get_inputs_fn,
                                     'get_outputs_fn' : get_outputs_fn,
                                     'get_configuration_fn' : get_configuration_fn})
 
