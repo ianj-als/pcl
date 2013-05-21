@@ -32,7 +32,15 @@ __VERSION = "1.0.0"
 
 def get_configuration(section, config_key):
     try:
-        value = config_parser.get(section, config_key)
+        value = config_parser.getboolean(section, config_key)
+    except ValueError:
+        try:
+            value = config_parser.getint(section, config_key)
+        except ValueError:
+            try:
+                value = config_parser.getfloat(section, config_key)
+            except ValueError:
+                value = config_parser.get(section, config_key)
     except ConfigParser.NoOptionError as ex:
         print "ERROR: Configuration file %s: %s" % (config_filename, ex)
         sys.exit(1)
@@ -40,14 +48,6 @@ def get_configuration(section, config_key):
         print "ERROR: Configuration file %s is missing the '%s' section" % \
               (config_filename, section)
         sys.exit(1)
-
-    try:
-        value = int(value)
-    except ValueError:
-        try:
-            value = float(value)
-        except ValueError:
-            pass
 
     return value
 

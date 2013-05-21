@@ -244,7 +244,9 @@ class IfExpression(Expression):
         Expression.__init__(self, filename, lineno)
         self.condition = conditional_expr
         self.then = then_expr
+        self.then.parent = self
         self.else_ = else_expr
+        self.else_.parent = self
 
     def get_available_inputs(self):
         return self.then.resolution_symbols['inputs'] >= (lambda tins: self.else_.resolution_symbols['inputs'] >= \
