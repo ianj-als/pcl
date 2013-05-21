@@ -27,7 +27,7 @@ from parser.resolver import Resolver
 from visitors.executor_visitor import ExecutorVisitor
 
 
-__VERSION = "1.0.2"
+__VERSION = "1.0.3"
 
 
 if __name__ == '__main__':

@@ -27,7 +27,7 @@ from pypeline.core.arrows.kleisli_arrow import KleisliArrow
 from pypeline.helpers.parallel_helpers import eval_pipeline, cons_function_component
 
 
-__VERSION = "1.0.0"
+__VERSION = "1.0.1"
 
 
 def get_configuration(section, config_key):
