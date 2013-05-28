@@ -28,7 +28,7 @@ from pypeline.core.arrows.kleisli_arrow import KleisliArrow
 from pypeline.helpers.parallel_helpers import eval_pipeline, cons_function_component
 
 
-__VERSION = "1.1.0"
+__VERSION = "1.1.1"
 
 
 def replace_environment_variables(value):
@@ -46,7 +46,7 @@ def replace_environment_variables(value):
     return value
 
 
-def get_configuration(section, config_key):
+def get_key_from_section(config_parser, section, config_key, replace_environ_vars = True):
     try:
         value = config_parser.getboolean(section, config_key)
     except ValueError:
@@ -57,20 +57,19 @@ def get_configuration(section, config_key):
                 value = config_parser.getfloat(section, config_key)
             except ValueError:
                 value = config_parser.get(section, config_key)
-                try:
+                if replace_environ_vars:
                     value = replace_environment_variables(value)
-                except Exception:
-                    print print >> sys.stderr, "ERROR: %s" % (str(ex))
-                    sys.exit(1)
     except ConfigParser.NoOptionError as ex:
-        print print >> sys.stderr, "ERROR: Configuration file %s: %s" % (config_filename, ex)
-        sys.exit(1)
+        raise Exception("Configuration file %s: %s" % (config_filename, ex))
     except ConfigParser.NoSectionError:
-        print print >> sys.stderr, "ERROR: Configuration file %s is missing the '%s' section" % \
-              (config_filename, section)
-        sys.exit(1)
+        raise Exception("Configuration file %s is missing the '%s' section" % \
+                        (config_filename, section))
 
     return value
+
+
+get_configuration = lambda c, k: get_key_from_section(c, 'Configuration', k)
+get_input = lambda c, k: get_key_from_section(c, 'Inputs', k, False)
 
 
 if __name__ == '__main__':
@@ -91,11 +90,11 @@ if __name__ == '__main__':
 
     # Show version?
     if options.version is True:
-        print print >> sys.stdout, __VERSION
+        print >> sys.stdout, __VERSION
         sys.exit(0)
 
     if len(args) < 1:
-        print print >> sys.stderr, "ERROR: no configuration file specified"
+        print >> sys.stderr, "ERROR: no configuration file specified"
         sys.exit(2)
 
     # Add the PCL extension is one is missing
@@ -126,7 +125,7 @@ if __name__ == '__main__':
                                                  'configure',
                                                  'initialise'])
     except Exception as ex:
-        print "ERROR: Failed to import PCL module %s: %s" % (pcl_module, ex)
+        print >> sys.stderr, "ERROR: Failed to import PCL module %s: %s" % (pcl_module, ex)
         sys.exit(1)
 
     # Get the pipeline
@@ -136,8 +135,7 @@ if __name__ == '__main__':
         configure_fn = getattr(pcl, "configure")
         initialise_fn = getattr(pcl, "initialise")
     except AttributeError as ex:
-        print "ERROR: PCL module %s does not have required functions: %s" % \
-              (pcl_module, ex)
+        print >> sys.stderr, "ERROR: PCL module %s does not have required functions: %s" % (pcl_module, ex)
         sys.exit(1)
 
     # Inputs, configuration types
@@ -146,8 +144,18 @@ if __name__ == '__main__':
 
     # Read the configuration from the configuration file
     configuration = dict()
+    configuration_errors = list()
     for config_key in configurations:
-        configuration[config_key] = get_configuration('Configuration', config_key)
+        try:
+            configuration[config_key] = get_configuration(config_parser, config_key)
+        except Exception as ex:
+            configuration_errors.append(str(ex))
+
+    # Any configuration errors
+    if configuration_errors:
+        for configuration_error in configuration_errors:
+            print >> sys.stderr, "ERROR: %s" % configuration_error
+        sys.exit(1)
 
     # Configure the PCL...
     filtered_config = configure_fn(configuration)
@@ -160,7 +168,7 @@ if __name__ == '__main__':
     def build_inputs_fn(inputs):
         input_dict = dict()
         for an_input in inputs:
-            input_dict[an_input] = get_configuration('Inputs', an_input)
+            input_dict[an_input] = get_input(config_parser, an_input)
         return input_dict
 
     if isinstance(inputs, tuple):
