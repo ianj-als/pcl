@@ -19,6 +19,7 @@
 #
 import ConfigParser
 import os
+import re
 import sys
 
 from concurrent.futures import ThreadPoolExecutor
@@ -27,7 +28,22 @@ from pypeline.core.arrows.kleisli_arrow import KleisliArrow
 from pypeline.helpers.parallel_helpers import eval_pipeline, cons_function_component
 
 
-__VERSION = "1.0.2"
+__VERSION = "1.1.0"
+
+
+def replace_environment_variables(value):
+    pattern = re.compile("\$\((?P<VAR_NAME>\w+)\)")
+    m = pattern.search(value)
+    while m is not None:
+        environ_var = m.group('VAR_NAME')
+        try:
+            environ_value = os.environ[environ_var]
+        except KeyError:
+            raise Exception("Environment variable %s is not set" % environ_var)
+        value = value[:m.start()] + environ_value + value[m.end():]
+        m = pattern.search(value)
+
+    return value
 
 
 def get_configuration(section, config_key):
@@ -41,11 +57,16 @@ def get_configuration(section, config_key):
                 value = config_parser.getfloat(section, config_key)
             except ValueError:
                 value = config_parser.get(section, config_key)
+                try:
+                    value = replace_environment_variables(value)
+                except Exception:
+                    print print >> sys.stderr, "ERROR: %s" % (str(ex))
+                    sys.exit(1)
     except ConfigParser.NoOptionError as ex:
-        print "ERROR: Configuration file %s: %s" % (config_filename, ex)
+        print print >> sys.stderr, "ERROR: Configuration file %s: %s" % (config_filename, ex)
         sys.exit(1)
     except ConfigParser.NoSectionError:
-        print "ERROR: Configuration file %s is missing the '%s' section" % \
+        print print >> sys.stderr, "ERROR: Configuration file %s is missing the '%s' section" % \
               (config_filename, section)
         sys.exit(1)
 
@@ -70,11 +91,11 @@ if __name__ == '__main__':
 
     # Show version?
     if options.version is True:
-        print __VERSION
+        print print >> sys.stdout, __VERSION
         sys.exit(0)
 
     if len(args) < 1:
-        print "ERROR: no configuration file specified"
+        print print >> sys.stderr, "ERROR: no configuration file specified"
         sys.exit(2)
 
     # Add the PCL extension is one is missing
