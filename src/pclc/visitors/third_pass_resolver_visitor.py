@@ -46,6 +46,13 @@ type_formatting_fn = lambda c: "(%s), (%s)" % (", ".join([i.identifier for i in 
                     if isinstance(c, tuple) \
                     else ", ".join([i.identifier for i in c])
 
+def type_formatting_fn(c):
+    print c
+    print len(c)
+    return "(%s), (%s)" % (", ".join([i.identifier for i in c[0]]), \
+                           ", ".join([i.identifier for i in c[1]])) \
+                           if isinstance(c, tuple) \
+                           else ", ".join([i.identifier for i in c])
 
 @multimethodclass
 class ThirdPassResolverVisitor(SecondPassResolverVisitor):

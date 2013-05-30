@@ -269,8 +269,12 @@ def p_wire_mappings(p):
         p[0] = [p[1]]
 
 def p_wire_mapping(p):
-    '''wire_mapping : identifier_or_qual_identifier MAPS_TO identifier_or_qual_identifier'''
-    p[0] = Mapping(p.parser.filename, p[1].lineno, p[1], p[3])
+    '''wire_mapping : identifier_or_qual_identifier MAPS_TO identifier_or_qual_identifier
+                    | literal MAPS_TO identifier_or_qual_identifier'''
+    if isinstance(p[1], Literal):
+        p[0] = LiteralMapping(p.parser.filename, p[1].lineno, p[1], p[3])
+    else:
+        p[0] = Mapping(p.parser.filename, p[1].lineno, p[1], p[3])
 
 def p_conditional_expression(p):
     '''conditional_expression : or_conditional_expression'''

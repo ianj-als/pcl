@@ -526,7 +526,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
     @multimethod(WireExpression)
     @resolve_expression_once
     def visit(self, wire_expr):
-        inputs = [m.from_ for m in wire_expr.mapping]
+        inputs = [m.from_ for m in wire_expr.mapping if isinstance(m, Mapping)]
         outputs = [m.to for m in wire_expr.mapping if str(m.to) != '_']
 
         # Catch duplicates
@@ -553,9 +553,9 @@ class FirstPassResolverVisitor(ResolverVisitor):
     @multimethod(WireTupleExpression)
     @resolve_expression_once
     def visit(self, wire_tuple_expr):
-        top_inputs = [m.from_ for m in wire_tuple_expr.top_mapping]
+        top_inputs = [m.from_ for m in wire_tuple_expr.top_mapping if isinstance(m, Mapping)]
         top_outputs = [m.to for m in wire_tuple_expr.top_mapping if m.to.identifier != '_']
-        bottom_inputs = [m.from_ for m in wire_tuple_expr.bottom_mapping]
+        bottom_inputs = [m.from_ for m in wire_tuple_expr.bottom_mapping if isinstance(m, Mapping)]
         bottom_outputs = [m.to for m in wire_tuple_expr.bottom_mapping if m.to.identifier != '_']
 
         # Catch duplicates
