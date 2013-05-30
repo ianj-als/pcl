@@ -523,11 +523,29 @@ class FirstPassResolverVisitor(ResolverVisitor):
         merge_expr.resolution_symbols['inputs'] = Just((frozenset(top_from_identifiers), frozenset(bottom_from_identifiers)))
         merge_expr.resolution_symbols['outputs'] = Just(frozenset(all_to_identifiers))
 
+        import pprint
+        pp = pprint.PrettyPrinter(indent = 2)
+
+        print "MERGE================"
+        print "INS"
+        merge_expr.resolution_symbols['inputs'] >= (lambda ins: pp.pprint(ins))
+        print "OUTS"
+        merge_expr.resolution_symbols['outputs'] >= (lambda outs: pp.pprint(outs))
+
     @multimethod(WireExpression)
     @resolve_expression_once
     def visit(self, wire_expr):
+        import pprint
+        pp = pprint.PrettyPrinter(indent = 2)
+
         inputs = [m.from_ for m in wire_expr.mapping if isinstance(m, Mapping)]
         outputs = [m.to for m in wire_expr.mapping if str(m.to) != '_']
+
+        print "WIRE================="
+        print "INS"
+        pp.pprint(inputs)
+        print "OUTS"
+        pp.pprint(outputs)
 
         # Catch duplicates
         duplicate_in_identifiers = FirstPassResolverVisitor.__check_scalar_or_tuple_collection(inputs)
@@ -550,13 +568,29 @@ class FirstPassResolverVisitor(ResolverVisitor):
         wire_expr.resolution_symbols['inputs'] = Just(frozenset(inputs))
         wire_expr.resolution_symbols['outputs'] = Just(frozenset(outputs))
 
+        import pprint
+        pp = pprint.PrettyPrinter(indent = 2)
+        print "INS"
+        wire_expr.resolution_symbols['inputs'] >= (lambda ins: pp.pprint(ins))
+        print "OUTS"
+        wire_expr.resolution_symbols['outputs'] >= (lambda outs: pp.pprint(outs))
+
     @multimethod(WireTupleExpression)
     @resolve_expression_once
     def visit(self, wire_tuple_expr):
+        import pprint
+        pp = pprint.PrettyPrinter(indent = 2)
+        
         top_inputs = [m.from_ for m in wire_tuple_expr.top_mapping if isinstance(m, Mapping)]
         top_outputs = [m.to for m in wire_tuple_expr.top_mapping if m.to.identifier != '_']
         bottom_inputs = [m.from_ for m in wire_tuple_expr.bottom_mapping if isinstance(m, Mapping)]
         bottom_outputs = [m.to for m in wire_tuple_expr.bottom_mapping if m.to.identifier != '_']
+
+        print "WIRE TUPLE================="
+        print "TOP OUTS"
+        pp.pprint(top_outputs)
+        print "BOTTOM OUTS"
+        pp.pprint(bottom_outputs)
 
         # Catch duplicates
         duplicate_top_in_identifiers = FirstPassResolverVisitor.__check_scalar_or_tuple_collection(top_inputs)
@@ -595,6 +629,11 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
         wire_tuple_expr.resolution_symbols['inputs'] = Just((frozenset(top_inputs), frozenset(bottom_inputs)))
         wire_tuple_expr.resolution_symbols['outputs'] = Just((frozenset(top_outputs), frozenset(bottom_outputs)))
+
+        print "INS"
+        wire_tuple_expr.resolution_symbols['inputs'] >= (lambda ins: pp.pprint(ins))
+        print "OUTS"
+        wire_tuple_expr.resolution_symbols['outputs'] >= (lambda outs: pp.pprint(outs))
 
     @multimethod(IfExpression)
     @resolve_expression_once

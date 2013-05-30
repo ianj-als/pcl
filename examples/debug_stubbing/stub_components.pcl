@@ -19,17 +19,19 @@
 import parallel_component as parallel
 import sequential_component as sequential
 
-component stub_component
+component stub_components
   inputs a
-  output a, seq_c, seq_d, para_e, para_f, para_h, para_h
+  output a, seq_c, seq_d, para_e, para_f, para_g, para_h
   declare
     para := new parallel
     seq := new sequential
   as
     wire a -> a &&&
-    ((wire a -> a, a -> b >>> seq) &&&
+    (seq &&&
      (split >>> wire (a -> a, a -> b), (a -> c, a -> d) >>> para >>> merge top[e] -> para_e, top[f] -> para_f,
-                                                                           bottom[g] -> para_g, bottom[h] -> para_h)) >>>
+                                                                           bottom[g] -> para_g, bottom[h] -> para_h) >>>
+     merge top[c] -> seq_c, top[d] -> seq_d,
+           bottom[para_e] -> para_e, bottom[para_f] -> para_f, bottom[para_g] -> para_g, bottom[para_h] -> para_h) >>>
     merge top[a] -> a,
           bottom[seq_c] -> seq_c, bottom[seq_d] -> seq_d,
           bottom[para_e] -> para_e, bottom[para_f] -> para_f, bottom[para_g] -> para_g, bottom[para_h] -> para_h
