@@ -46,15 +46,6 @@ type_formatting_fn = lambda c: "(%s), (%s)" % (", ".join([i.identifier for i in 
                     if isinstance(c, tuple) \
                     else ", ".join([i.identifier for i in c])
 
-import pprint
-def type_formatting_fn(c):
-    pp = pprint.PrettyPrinter(indent = 2)
-    print "================="
-    pp.pprint(c)
-    return "(%s), (%s)" % (", ".join([i.identifier for i in c[0]]), \
-                           ", ".join([i.identifier for i in c[1]])) \
-                           if isinstance(c, tuple) \
-                           else ", ".join([i.identifier for i in c])
 
 @multimethodclass
 class ThirdPassResolverVisitor(SecondPassResolverVisitor):
@@ -110,6 +101,14 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
         # Update the inputs and outputs for this composed component
         comp_expr.resolution_symbols['inputs'] = comp_expr.left.resolution_symbols['inputs']
         comp_expr.resolution_symbols['outputs'] = comp_expr.right.resolution_symbols['outputs']
+
+        import pprint
+        pp = pprint.PrettyPrinter(indent = 2)
+        print "COMP================ %d (left = %d, right = %d)" % (comp_expr.lineno, comp_expr.left.lineno, comp_expr.right.lineno)
+        print "INS"
+        comp_expr.resolution_symbols['inputs'] >= (lambda ins: pp.pprint(ins))
+        print "OUTS"
+        comp_expr.resolution_symbols['outputs'] >= (lambda outs: pp.pprint(outs))
 
     @multimethod(IfExpression)
     @resolve_expression_once

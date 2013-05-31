@@ -17,7 +17,7 @@
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
 component sequential_component
-  inputs a
+  inputs a, b
   output c, d
   as
-    wire a -> _, True -> c, False -> d
+    wire a -> _, b -> _, True -> c, False -> d
