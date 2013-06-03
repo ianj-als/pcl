@@ -79,6 +79,13 @@ def resolve_expression_once(method):
     return resolve_once_wrapper
 
 
+# Format component types
+type_formatting_fn = lambda c: "(%s), (%s)" % (", ".join([i.identifier for i in c[0]]), \
+                                            ", ".join([i.identifier for i in c[1]])) \
+                    if isinstance(c, tuple) \
+                    else ", ".join([i.identifier for i in c])
+
+
 @multimethodclass
 class FirstPassResolverVisitor(ResolverVisitor):
     def __init__(self, pcl_import_path = []):
@@ -425,12 +432,14 @@ class FirstPassResolverVisitor(ResolverVisitor):
         unary_expr.resolution_symbols['inputs'] = unary_expr.expression.resolution_symbols['inputs']
         unary_expr.resolution_symbols['outputs'] = unary_expr.expression.resolution_symbols['outputs']
 
+    # (>>>) :: Arrow c => a b c -> a c d -> a b d
     @multimethod(CompositionExpression)
     def visit(self, comp_expr):
         # The inputs and outputs for this composed component
         comp_expr.resolution_symbols['inputs'] = comp_expr.left.resolution_symbols['inputs']
         comp_expr.resolution_symbols['outputs'] = comp_expr.right.resolution_symbols['outputs']
 
+    # *** :: Arrow a => a b c -> a b' c' -> a (b, b') (c, c')
     @multimethod(ParallelWithTupleExpression)
     def visit(self, para_tuple_expr):
         # Inputs and outputs of the top and bottom components
@@ -447,16 +456,22 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                         (lambda touts: bottom_outputs >= \
                                                          (lambda bouts: Just((touts, bouts))))
 
+    # &&& : Arrow a => a b c -> a b c' -> a b (c c')
     @multimethod(ParallelWithScalarExpression)
     def visit(self, para_scalar_expr):
-        # Inputs are all the union of the top and bottom component inputs
+        # Use the available left and right component inputs to
+        # construct the fanout input types, i.e., best guess.
         top_inputs = para_scalar_expr.left.resolution_symbols['inputs']
         bottom_inputs = para_scalar_expr.right.resolution_symbols['inputs']
-        inputs = top_inputs >= \
-                 (lambda tins: bottom_inputs >= \
-                  (lambda bins: Just(frozenset([i for i in tins.union(bins)]))))
+        if top_inputs and bottom_inputs:
+            inputs = top_inputs >= \
+                     (lambda tins: bottom_inputs >= \
+                      (lambda bins: Just(frozenset([i for i in tins.union(bins)]))))
+        elif top_inputs:
+            inputs = top_inputs
+        else:
+            inputs = bottom_inputs
 
-        # Outputs of component is the top and bottom components' outputs
         top_outputs = para_scalar_expr.left.resolution_symbols['outputs']
         bottom_outputs = para_scalar_expr.right.resolution_symbols['outputs']
 
@@ -522,15 +537,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
         merge_expr.resolution_symbols['inputs'] = Just((frozenset(top_from_identifiers), frozenset(bottom_from_identifiers)))
         merge_expr.resolution_symbols['outputs'] = Just(frozenset(all_to_identifiers))
-
-        import pprint
-        pp = pprint.PrettyPrinter(indent = 2)
-
-        print "MERGE================"
-        print "INS"
-        merge_expr.resolution_symbols['inputs'] >= (lambda ins: pp.pprint(ins))
-        print "OUTS"
-        merge_expr.resolution_symbols['outputs'] >= (lambda outs: pp.pprint(outs))
 
     @multimethod(WireExpression)
     @resolve_expression_once

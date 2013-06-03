@@ -32,19 +32,14 @@ from parser.conditional_expressions import AndConditionalExpression, \
      TerminalConditionalExpression
 from parser.declaration import Declaration
 from parser.expressions import CompositionExpression, \
+     ParallelWithScalarExpression, \
      IfExpression, \
      Identifier, \
      StateIdentifier
 from pypeline.core.types.just import Just
 from pypeline.core.types.nothing import Nothing
-from first_pass_resolver_visitor import resolve_expression_once
+from first_pass_resolver_visitor import resolve_expression_once, type_formatting_fn
 from second_pass_resolver_visitor import SecondPassResolverVisitor
-
-
-type_formatting_fn = lambda c: "(%s), (%s)" % (", ".join([i.identifier for i in c[0]]), \
-                                            ", ".join([i.identifier for i in c[1]])) \
-                    if isinstance(c, tuple) \
-                    else ", ".join([i.identifier for i in c])
 
 
 @multimethodclass
@@ -83,6 +78,7 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
                                                                                                           'got' : type_formatting_fn(actual_outputs)}) or Nothing() \
                                                        if expected_outputs != actual_outputs else Just(actual_outputs)))
 
+    # (>>>) :: Arrow c => a b c -> a c d -> a b d
     @multimethod(CompositionExpression)
     def visit(self, comp_expr):
         # Check that the composing components are output/input
@@ -102,13 +98,20 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
         comp_expr.resolution_symbols['inputs'] = comp_expr.left.resolution_symbols['inputs']
         comp_expr.resolution_symbols['outputs'] = comp_expr.right.resolution_symbols['outputs']
 
-        import pprint
-        pp = pprint.PrettyPrinter(indent = 2)
-        print "COMP================ %d (left = %d, right = %d)" % (comp_expr.lineno, comp_expr.left.lineno, comp_expr.right.lineno)
-        print "INS"
-        comp_expr.resolution_symbols['inputs'] >= (lambda ins: pp.pprint(ins))
-        print "OUTS"
-        comp_expr.resolution_symbols['outputs'] >= (lambda outs: pp.pprint(outs))
+    # &&& : Arrow a => a b c -> a b c' -> a b (c c')
+    @multimethod(ParallelWithScalarExpression)
+    def visit(self, para_scalar_expr):
+        # Inputs are all the union of the top and bottom component inputs
+        top_inputs = para_scalar_expr.left.resolution_symbols['inputs']
+        bottom_inputs = para_scalar_expr.right.resolution_symbols['inputs']
+        if top_inputs != bottom_inputs or top_inputs is Nothing() or bottom_inputs is Nothing():
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, attempted use of incompatible inputs " \
+                             "with components in fanout:\n\ttop %(top_inputs)s\n\tbottom %(bottom_inputs)s", \
+                             [para_scalar_expr],
+                             lambda e: {'filename' : e.filename,
+                                        'lineno' : e.lineno,
+                                        'top_inputs' : top_inputs >= type_formatting_fn,
+                                        'bottom_inputs' : bottom_inputs >= type_formatting_fn})
 
     @multimethod(IfExpression)
     @resolve_expression_once

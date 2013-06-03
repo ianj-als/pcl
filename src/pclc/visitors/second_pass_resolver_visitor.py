@@ -26,6 +26,7 @@ from parser.declaration import Declaration
 from parser.expressions import UnaryExpression, \
      BinaryExpression, \
      CompositionExpression, \
+     ParallelWithScalarExpression, \
      FirstExpression, \
      SecondExpression, \
      SplitExpression
@@ -62,7 +63,11 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
         if node is None:
             return Just(frozenset(self._module.definition.inputs))
 
-        if isinstance(node, BinaryExpression):
+        if isinstance(node, ParallelWithScalarExpression):
+            if node.resolution_symbols.has_key('inputs') and \
+               not isinstance(node.resolution_symbols['inputs'], Nothing):
+                return node.resolution_symbols['inputs']
+        elif isinstance(node, BinaryExpression):
             if node.left is child:
                 if node.resolution_symbols.has_key('inputs') and \
                    not isinstance(node.resolution_symbols['inputs'], Nothing):
