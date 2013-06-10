@@ -169,7 +169,7 @@ def p_composition_expression(p):
     if len(p) == 2:
         p[0] = p[1]
     else:
-        p[0] = CompositionExpression(p.parser.filename, p[1].lineno, p[1], p[3])
+        p[0] = CompositionExpression(p.parser.filename, p.lineno(2), p[1], p[3])
 
 def p_parallel_with_tuple_expression(p):
     '''parallel_with_tuple_expression : parallel_with_scalar_expression
@@ -177,7 +177,7 @@ def p_parallel_with_tuple_expression(p):
     if len(p) == 2:
         p[0] = p[1]
     else:
-        p[0] = ParallelWithTupleExpression(p.parser.filename, p[1].lineno, p[1], p[3])
+        p[0] = ParallelWithTupleExpression(p.parser.filename, p.lineno(2), p[1], p[3])
 
 def p_parallel_with_scalar_expression(p):
     '''parallel_with_scalar_expression : unary_expression
@@ -185,7 +185,7 @@ def p_parallel_with_scalar_expression(p):
     if len(p) == 2:
         p[0] = p[1]
     else:
-        p[0] = ParallelWithScalarExpression(p.parser.filename, p[1].lineno, p[1], p[3])
+        p[0] = ParallelWithScalarExpression(p.parser.filename, p.lineno(2), p[1], p[3])
 
 def p_unary_expression(p):
     '''unary_expression : first_expression
