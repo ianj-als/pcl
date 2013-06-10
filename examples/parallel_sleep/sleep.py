@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
-import os
+import subprocess
 
 def get_name():
   return "sleep"
@@ -35,7 +35,8 @@ def configure(args):
 
 def initialise(config):
   def sleep_function(a, s):
-    os.system(" ".join([config['sleep_command'], str(a['sleep_time'])]))
+    proc = subprocess.Popen([config['sleep_command'], str(a['sleep_time'])])
+    proc.communicate()
     return {'complete' : True}
 
   return sleep_function

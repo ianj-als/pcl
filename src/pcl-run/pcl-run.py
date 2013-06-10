@@ -28,7 +28,7 @@ from pypeline.core.arrows.kleisli_arrow import KleisliArrow
 from pypeline.helpers.parallel_helpers import eval_pipeline, cons_function_component
 
 
-__VERSION = "1.1.1"
+__VERSION = "1.1.2"
 
 
 def replace_environment_variables(value):
@@ -83,7 +83,8 @@ if __name__ == '__main__':
                       help = "show version and exit")
     parser.add_option("-n",
                       "--noworkers",
-                      default = 3,
+                      type = "int",
+                      default = 5,
                       dest = "no_workers",
                       help = "number of pipeline evaluation workers [default: %default]")
     (options, args) = parser.parse_args()
@@ -180,7 +181,6 @@ if __name__ == '__main__':
         pipeline_inputs = build_inputs_fn(inputs)
 
     executor = ThreadPoolExecutor(max_workers = options.no_workers)
-    print >> sys.stderr, "Evaluating pipeline..."
     try:
         print >> sys.stdout, eval_pipeline(executor, pipeline, pipeline_inputs, configuration)
     finally:

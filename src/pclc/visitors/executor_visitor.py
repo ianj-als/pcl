@@ -73,9 +73,13 @@ class ExecutorVisitor(object):
                "from pypeline.core.arrows.kleisli_arrow_choice import KleisliArrowChoice\n" \
                "from pypeline.core.types.either import Left, Right\n" \
                "from pypeline.core.types.state import return_\n"
+    __INSTRUMENTATION_FUNCTION = "import sys, threading, datetime\n" \
+                                 "def ____instr_component(invoked_component, event, a):\n" \
+                                 "  print >> sys.stderr, '%s: %s: Component %s is %s' % (datetime.datetime.now().strftime('%x %X.%f'), threading.current_thread().name, invoked_component, event)\n" \
+                                 "  return a\n"
     __TEMP_VAR = "____tmp_%d"
 
-    def __init__(self, filename_root):
+    def __init__(self, filename_root, is_instrumented = False):
         # Check that the __init__.py file exists in the
         # working directory
         if os.path.isfile('__init__.py') is False:
@@ -87,6 +91,10 @@ class ExecutorVisitor(object):
         header_args = {'datetime' : \
                        datetime.datetime.now().strftime("%A %d %B %Y at %H:%M:%S")}
         self.__write_line(ExecutorVisitor.__HEADER % header_args)
+        self.__is_instrumented = is_instrumented
+        if self.__is_instrumented:
+            self.__write_line(ExecutorVisitor.__INSTRUMENTATION_FUNCTION)
+        self.__write_line()
         self.__conditional_operators = {AndConditionalExpression : 'and',
                                         OrConditionalExpression : 'or',
                                         XorConditionalExpression : '^',
@@ -233,6 +241,14 @@ class ExecutorVisitor(object):
                                  "else cons_function_component(%(id)s)" % \
                                  {'id' : decl.identifier} \
                                  for decl in self._module.resolution_symbols['components']]
+        # Wrap with instrumentation, if required
+        if self.__is_instrumented:
+            component_instrumentation_exprs = ["%(id)s = ((cons_function_component(lambda a, s: ____instr_component(____%(comp_alias)s.get_name(), 'starting', a)) >> " \
+                                               "%(id)s) >> " \
+                                               "cons_function_component(lambda a, s: ____instr_component(____%(comp_alias)s.get_name(), 'finishing', a)))" % \
+                                               {'id' : decl.identifier,
+                                                'comp_alias' : decl.component_alias} \
+                                               for decl in self._module.resolution_symbols['components']]
         # Wrap this component with any state conversion components
         state_wrappers = ["%(id)s = ((cons_function_component(lambda a, s: a, state_mutator = lambda s: {%(state)s, '____prev_' : s})) >> %(id)s) >> cons_function_component(lambda a, s: a, state_mutator = lambda s: s['____prev_'])" % \
                           {'id' : decl.identifier,
@@ -245,8 +261,12 @@ class ExecutorVisitor(object):
                                                         else m.literal) \
                                                         for cm in decl.configuration_mappings]))} if decl.configuration_mappings else ""
                           for decl in self._module.resolution_symbols['components']]
-        # 
-        initialise_fn = [t for triple in zip(component_initialisations, component_decl_guards, state_wrappers) for t in triple]
+        # Do we generate instrumented code?
+        if self.__is_instrumented:
+            decl_zipper = zip(component_initialisations, component_decl_guards, component_instrumentation_exprs, state_wrappers)
+        else:
+            decl_zipper = zip(component_initialisations, component_decl_guards, state_wrappers)
+        initialise_fn = [t for triple in decl_zipper for t in triple]
         # Store variables in variable table
         for decl in self._module.resolution_symbols['components']:
             self._var_table[IdentifierExpression(None,
@@ -284,14 +304,14 @@ class ExecutorVisitor(object):
 
     @multimethod(ParallelWithTupleExpression)
     def visit(self, para_tuple_expr):
-        self.__write_line("%s = %s.first() >> %s.second()" % \
+        self.__write_line("%s = %s ** %s" % \
                           (self.__get_temp_var(para_tuple_expr),
                            self.__lookup_var(para_tuple_expr.left),
                            self.__lookup_var(para_tuple_expr.right)))
 
     @multimethod(ParallelWithScalarExpression)
     def visit(self, para_scalar_expr):
-        self.__write_line("%s = cons_split_wire() >> (%s.first() >> %s.second())" % \
+        self.__write_line("%s = %s & %s" % \
                           (self.__get_temp_var(para_scalar_expr),
                            self.__lookup_var(para_scalar_expr.left),
                            self.__lookup_var(para_scalar_expr.right)))

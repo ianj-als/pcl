@@ -27,7 +27,7 @@ from parser.resolver import Resolver
 from visitors.executor_visitor import ExecutorVisitor
 
 
-__VERSION = "1.0.7"
+__VERSION = "1.1.0"
 
 
 if __name__ == '__main__':
@@ -38,6 +38,12 @@ if __name__ == '__main__':
                       default = "WARN",
                       dest = "loglevel",
                       help = "parser log file reporting level [default: %default]")
+    parser.add_option("-i",
+                      "--instrument",
+                      action = "store_true",
+                      default = False,
+                      dest = "is_instrumented",
+                      help = "Generated code shall instrument components")
     parser.add_option("-v",
                       "--version",
                       action = "store_true",
@@ -85,7 +91,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Execute.
-    executor = ExecutorVisitor(basename_bits[0])
+    executor = ExecutorVisitor(basename_bits[0], options.is_instrumented)
     try:
         ast.accept(executor)
     except Exception as ex:
