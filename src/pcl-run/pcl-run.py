@@ -22,57 +22,55 @@ import os
 import re
 import sys
 
-from concurrent.futures import ThreadPoolExecutor
 from optparse import OptionParser
-from pypeline.core.arrows.kleisli_arrow import KleisliArrow
-from pypeline.helpers.parallel_helpers import eval_pipeline, cons_function_component
+from runner.runner import PCLImportError, execute_module
 
 
-__VERSION = "1.1.2"
-
-
-def replace_environment_variables(value):
-    pattern = re.compile("\$\((?P<VAR_NAME>\w+)\)")
-    m = pattern.search(value)
-    while m is not None:
-        environ_var = m.group('VAR_NAME')
-        try:
-            environ_value = os.environ[environ_var]
-        except KeyError:
-            raise Exception("Environment variable %s is not set" % environ_var)
-        value = value[:m.start()] + environ_value + value[m.end():]
-        m = pattern.search(value)
-
-    return value
-
-
-def get_key_from_section(config_parser, section, config_key, replace_environ_vars = True):
-    try:
-        value = config_parser.getboolean(section, config_key)
-    except ValueError:
-        try:
-            value = config_parser.getint(section, config_key)
-        except ValueError:
-            try:
-                value = config_parser.getfloat(section, config_key)
-            except ValueError:
-                value = config_parser.get(section, config_key)
-                if replace_environ_vars:
-                    value = replace_environment_variables(value)
-    except ConfigParser.NoOptionError as ex:
-        raise Exception("Configuration file %s: %s" % (config_filename, ex))
-    except ConfigParser.NoSectionError:
-        raise Exception("Configuration file %s is missing the '%s' section" % \
-                        (config_filename, section))
-
-    return value
-
-
-get_configuration = lambda c, k: get_key_from_section(c, 'Configuration', k)
-get_input = lambda c, k: get_key_from_section(c, 'Inputs', k, False)
+__VERSION = "1.2.0"
 
 
 if __name__ == '__main__':
+    def replace_environment_variables(value):
+        pattern = re.compile("\$\((?P<VAR_NAME>\w+)\)")
+        m = pattern.search(value)
+        while m is not None:
+            environ_var = m.group('VAR_NAME')
+            try:
+                environ_value = os.environ[environ_var]
+            except KeyError:
+                raise Exception("Environment variable %s is not set" % environ_var)
+            value = value[:m.start()] + environ_value + value[m.end():]
+            m = pattern.search(value)
+
+        return value
+
+
+    def get_key_from_section(config_parser, section, config_key, replace_environ_vars = True):
+        try:
+            value = config_parser.getboolean(section, config_key)
+        except ValueError:
+            try:
+                value = config_parser.getint(section, config_key)
+            except ValueError:
+                try:
+                    value = config_parser.getfloat(section, config_key)
+                except ValueError:
+                    value = config_parser.get(section, config_key)
+                    if replace_environ_vars:
+                        value = replace_environment_variables(value)
+        except ConfigParser.NoOptionError as ex:
+            raise Exception("Configuration file %s: %s" % (config_filename, ex))
+        except ConfigParser.NoSectionError:
+            raise Exception("Configuration file %s is missing the '%s' section" % \
+                            (config_filename, section))
+
+        return value
+
+
+    get_configuration = lambda c, k: get_key_from_section(c, 'Configuration', k)
+    get_input = lambda c, k: get_key_from_section(c, 'Inputs', k, False)
+
+
     # The option parser
     parser = OptionParser("Usage: %prog [options] [PCL configuration]")
     parser.add_option("-v",
@@ -107,9 +105,8 @@ if __name__ == '__main__':
 
     # PCL import path
     pcl_import_path = os.getenv("PCL_IMPORT_PATH", ".")
-    sys.path.extend(pcl_import_path.split(":"))
 
-    # Import the compiled pipeline component.
+    # Construct the PCL module name
     # The compiled PCL and configuration file should
     # be next to each other.
     config_filename = ".".join(basename_bits)
@@ -119,69 +116,52 @@ if __name__ == '__main__':
     config_parser = ConfigParser.ConfigParser()
     config_parser.read(config_filename)
 
-    # Import PCL
+    # Read the configuration from the configuration file
+    def get_configuration(expected_configurations):
+        configuration = dict()
+        configuration_errors = list()
+        for config_key in expected_configurations:
+            try:
+                configuration[config_key] = get_configuration(config_parser, config_key)
+            except Exception as ex:
+                configuration_errors.append(str(ex))
+
+            # Any configuration errors
+            if configuration_errors:
+                for configuration_error in configuration_errors:
+                    print >> sys.stderr, "ERROR: %s" % configuration_error
+                sys.exit(1)
+
+        return configuration
+
+    # Read the inputs from the configuration file
+    def get_inputs(expected_inputs):
+        # Create inputs
+        def build_inputs_fn(inputs):
+            input_dict = dict()
+            for an_input in inputs:
+                input_dict[an_input] = get_input(config_parser, an_input)
+            return input_dict
+
+        if isinstance(expected_inputs, tuple):
+            pipeline_inputs = list()
+            for set_inputs in expected_inputs:
+                pipeline_inputs.append(build_inputs_fn(set_inputs))
+            pipeline_inputs = tuple(pipeline_inputs)
+        else:
+            pipeline_inputs = build_inputs_fn(expected_inputs)
+
+        return pipeline_inputs
+
     try:
-        pcl = __import__(pcl_module, fromlist = ['get_inputs',
-                                                 'get_configuration',
-                                                 'configure',
-                                                 'initialise'])
-    except Exception as ex:
+        print >> sys.stderr, execute_module(pcl_import_path,
+                                            pcl_module,
+                                            options.no_workers,
+                                            get_configuration,
+                                            get_inputs)[1]
+    except PCLImportError as ex:
         print >> sys.stderr, "ERROR: Failed to import PCL module %s: %s" % (pcl_module, ex)
         sys.exit(1)
-
-    # Get the pipeline
-    try:
-        get_inputs_fn = getattr(pcl, "get_inputs")
-        get_configuration_fn = getattr(pcl, "get_configuration")
-        configure_fn = getattr(pcl, "configure")
-        initialise_fn = getattr(pcl, "initialise")
     except AttributeError as ex:
         print >> sys.stderr, "ERROR: PCL module %s does not have required functions: %s" % (pcl_module, ex)
         sys.exit(1)
-
-    # Inputs, configuration types
-    inputs = get_inputs_fn()
-    configurations = get_configuration_fn()
-
-    # Read the configuration from the configuration file
-    configuration = dict()
-    configuration_errors = list()
-    for config_key in configurations:
-        try:
-            configuration[config_key] = get_configuration(config_parser, config_key)
-        except Exception as ex:
-            configuration_errors.append(str(ex))
-
-    # Any configuration errors
-    if configuration_errors:
-        for configuration_error in configuration_errors:
-            print >> sys.stderr, "ERROR: %s" % configuration_error
-        sys.exit(1)
-
-    # Configure the PCL...
-    filtered_config = configure_fn(configuration)
-    # ...and initialise
-    pipeline = initialise_fn(filtered_config)
-    if not isinstance(pipeline, KleisliArrow):
-        pipeline = cons_function_component(pipeline)
-
-    # Create inputs
-    def build_inputs_fn(inputs):
-        input_dict = dict()
-        for an_input in inputs:
-            input_dict[an_input] = get_input(config_parser, an_input)
-        return input_dict
-
-    if isinstance(inputs, tuple):
-        pipeline_inputs = list()
-        for set_inputs in inputs:
-            pipeline_inputs.append(build_inputs_fn(set_inputs))
-        pipeline_inputs = tuple(pipeline_inputs)
-    else:
-        pipeline_inputs = build_inputs_fn(inputs)
-
-    executor = ThreadPoolExecutor(max_workers = options.no_workers)
-    try:
-        print >> sys.stdout, eval_pipeline(executor, pipeline, pipeline_inputs, configuration)
-    finally:
-        executor.shutdown(True)
