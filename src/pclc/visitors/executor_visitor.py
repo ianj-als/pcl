@@ -74,8 +74,8 @@ class ExecutorVisitor(object):
                "from pypeline.core.types.either import Left, Right\n" \
                "from pypeline.core.types.state import return_\n"
     __INSTRUMENTATION_FUNCTION = "import sys, threading, datetime\n" \
-                                 "def ____instr_component(invoked_component, event, a):\n" \
-                                 "  print >> sys.stderr, '%s: %s: Component %s is %s' % (datetime.datetime.now().strftime('%x %X.%f'), threading.current_thread().name, invoked_component, event)\n" \
+                                 "def ____instr_component(invoked_component, component_id, event, a):\n" \
+                                 "  print >> sys.stderr, '%s: %s: Component %s (id = %s) is %s' % (datetime.datetime.now().strftime('%x %X.%f'), threading.current_thread().name, invoked_component, component_id, event)\n" \
                                  "  return a\n"
     __TEMP_VAR = "____tmp_%d"
 
@@ -243,9 +243,9 @@ class ExecutorVisitor(object):
                                  for decl in self._module.resolution_symbols['components']]
         # Wrap with instrumentation, if required
         if self.__is_instrumented:
-            component_instrumentation_exprs = ["%(id)s = ((cons_function_component(lambda a, s: ____instr_component(____%(comp_alias)s.get_name(), 'starting', a)) >> " \
+            component_instrumentation_exprs = ["%(id)s = ((cons_function_component(lambda a, s: ____instr_component(____%(comp_alias)s.get_name(), id(%(id)s), 'starting', a)) >> " \
                                                "%(id)s) >> " \
-                                               "cons_function_component(lambda a, s: ____instr_component(____%(comp_alias)s.get_name(), 'finishing', a)))" % \
+                                               "cons_function_component(lambda a, s: ____instr_component(____%(comp_alias)s.get_name(), id(%(id)s), 'finishing', a)))" % \
                                                {'id' : decl.identifier,
                                                 'comp_alias' : decl.component_alias} \
                                                for decl in self._module.resolution_symbols['components']]
@@ -350,33 +350,25 @@ class ExecutorVisitor(object):
                           (self.__get_temp_var(merge_expr),
                            mapping))
 
-    @multimethod(WireExpression)
-    def visit(self, wire_expr):
+    @staticmethod
+    def __build_wire_expr(mapping):
         dict_repr = ["'%s' : %s" % (m.to,
                                     "a['%s']" % (m.from_) if isinstance(m, Mapping) \
                                     else (m.literal.value.__repr__() if isinstance(m.literal.value, str) else m.literal)) \
-                                    for m in wire_expr.mapping \
-                                    if str(m.to) != '_']
-        self.__write_line("%s = cons_wire(lambda a, s: {%s})" % \
-                          (self.__get_temp_var(wire_expr),
-                           ", ".join(dict_repr)))
+                     for m in mapping \
+                     if str(m.to) != '_']
+        return "cons_wire(lambda a, s: {%s})" % (", ".join(dict_repr))
+    
+    @multimethod(WireExpression)
+    def visit(self, wire_expr):
+        self.__write_line("%s = %s" % (self.__get_temp_var(wire_expr), ExecutorVisitor.__build_wire_expr(wire_expr.mapping)))
 
     @multimethod(WireTupleExpression)
     def visit(self, wire_tuple_expr):
-        top_dict_repr = ["'%s' : %s" % (m.to,
-                                        "t[0]['%s']" % (m.from_) if isinstance(m, Mapping) \
-                                        else (m.literal.value.__repr__() if isinstance(m.literal.value, str) else m.literal)) \
-                         for m in wire_tuple_expr.top_mapping \
-                         if str(m.to) != '_']
-        bottom_dict_repr = ["'%s' : %s" % (m.to,
-                                        "t[1]['%s']" % (m.from_) if isinstance(m, Mapping) \
-                                        else (m.literal.value.__repr__() if isinstance(m.literal.value, str) else m.literal)) \
-                            for m in wire_tuple_expr.bottom_mapping \
-                            if str(m.to) != '_']
-        wire_fn = "lambda t, s: ({%s}, {%s})" % (", ".join(top_dict_repr), ", ".join(bottom_dict_repr))
-        self.__write_line("%s = cons_wire(%s)" % \
+        self.__write_line("%s = %s ** %s" % \
                           (self.__get_temp_var(wire_tuple_expr),
-                           wire_fn))
+                           ExecutorVisitor.__build_wire_expr(wire_tuple_expr.top_mapping),
+                           ExecutorVisitor.__build_wire_expr(wire_tuple_expr.bottom_mapping)))
 
     @multimethod(IfExpression)
     def visit(self, if_expr):
