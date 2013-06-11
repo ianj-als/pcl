@@ -226,7 +226,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                          'configure',
                                                          'initialise'])
             except Exception as ie:
-                print str(ie), type(ie)
                 self._add_errors("ERROR: %(filename)s at line %(lineno)d, error importing " \
                                  "module %(module_name)s: %(exception)s",
                                  [an_import],

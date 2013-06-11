@@ -26,7 +26,7 @@ from optparse import OptionParser
 from runner.runner import PCLImportError, execute_module
 
 
-__VERSION = "1.2.0"
+__VERSION = "1.2.1"
 
 
 if __name__ == '__main__':
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     config_parser.read(config_filename)
 
     # Read the configuration from the configuration file
-    def get_configuration(expected_configurations):
+    def get_configuration_values(expected_configurations):
         configuration = dict()
         configuration_errors = list()
         for config_key in expected_configurations:
@@ -135,7 +135,7 @@ if __name__ == '__main__':
         return configuration
 
     # Read the inputs from the configuration file
-    def get_inputs(expected_inputs):
+    def get_input_values(expected_inputs):
         # Create inputs
         def build_inputs_fn(inputs):
             input_dict = dict()
@@ -157,8 +157,8 @@ if __name__ == '__main__':
         print >> sys.stderr, execute_module(pcl_import_path,
                                             pcl_module,
                                             options.no_workers,
-                                            get_configuration,
-                                            get_inputs)[1]
+                                            get_configuration_values,
+                                            get_input_values)[1]
     except PCLImportError as ex:
         print >> sys.stderr, "ERROR: Failed to import PCL module %s: %s" % (pcl_module, ex)
         sys.exit(1)
