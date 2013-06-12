@@ -200,6 +200,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
             self._module.resolution_symbols = {'imports' : dict(),
                                                'components' : dict(),
                                                'used_components' : dict(),
+                                               'used_imports' : dict(),
                                                'configuration' : dict(),
                                                'unused_configuration' : list()}
 
@@ -302,6 +303,9 @@ class FirstPassResolverVisitor(ResolverVisitor):
             # Always add the module alias as a key to the import dictionary
             import_symbol_dict[an_import.alias] = module_spec
 
+            # Mark the import as not used for now ;)
+            self._module.resolution_symbols['used_imports'][an_import.alias] = (an_import, False)
+
     @multimethod(Component)
     def visit(self, component):
         # Component name *must* be the same as the file name
@@ -403,7 +407,11 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                         'missing' : ", ".join([str(i) for i in unused_configuration])})
 
         # Mark the declaration as not used, yet. ;)
-        self._module.resolution_symbols['used_components'][decl.component_alias] = False
+        self._module.resolution_symbols['used_components'][decl.identifier] = False
+
+        # Mark the import as used
+        self._module.resolution_symbols['used_imports'][decl.component_alias] = (self._module.resolution_symbols['used_imports'][decl.component_alias][0],
+                                                                                 True)
 
     @multimethod(object)
     def visit(self, nowt):
@@ -412,6 +420,16 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                           filter(lambda e: e[1] == False,
                                                  self._module.resolution_symbols['used_components'].iteritems()),
                                           list())
+        # Look for unused imports
+        unused_imports = reduce(lambda acc, e: acc + [e[0]],
+                                filter(lambda e: e[1] == False,
+                                       self._module.resolution_symbols['used_imports'].itervalues()),
+                                list())
+        self._add_warnings("WARNING: %(filename)s at line %(lineno)s, imported component %(component)s is not used",
+                           unused_imports,
+                           lambda e: {'filename' : e.filename,
+                                      'lineno' : e.lineno,
+                                      'component' : e.module_name})
         self._add_warnings("WARNING: %(filename)s at line %(lineno)d, component %(component)s is defined " \
                            "but not used",
                            unused_component_aliases,
@@ -707,7 +725,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
         module_spec = imports_sym_table[module_alias]
 
         # Mark component as used
-        self._module.resolution_symbols['used_components'][declaration.component_alias] = True
+        self._module.resolution_symbols['used_components'][declaration.identifier] = True
 
         # Create types
         transform_fn = lambda stuff: Nothing() if stuff is None \
