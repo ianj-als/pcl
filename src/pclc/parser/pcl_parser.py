@@ -20,6 +20,7 @@
 # Pipeline Creation Language Parser
 #
 import ply.yacc as yacc
+import sys
 
 from pcl_lexer import tokens, PCLLexer
 from import_spec import Import
@@ -406,14 +407,17 @@ recovery_tokens = (')',
                    'DECLARE')
 
 def p_error(token):
-    print "ERROR: line %d parser failure at or near %s" % \
-           (token.lineno,
-            token.type)
-    while True:
-        tok = yacc.token()
-        if not tok or tok.type in recovery_tokens:
-            break
-    yacc.restart()
+    if not token:
+        print >> sys.stderr, "ERROR: Unexpected EOF"
+    else:
+        print >> sys.stderr, "ERROR: line %d parser failure at or near %s" % \
+                             (token.lineno, token.type)
+
+        while True:
+            tok = yacc.token()
+            if not tok or tok.type in recovery_tokens:
+                break
+        yacc.restart()
 
 class PCLParser(object):
     def __init__(self, lexer, logger, **kwargs):
