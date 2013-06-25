@@ -1,0 +1,25 @@
+component ::= imports? 'component' identifier ('input' | 'inputs') port_definition ('output' | 'outputs') port_definition configuration? declarations? 'as' component_expression
+
+imports ::= 'import' (identifier | qualified_identifier) 'as' identifier
+
+port_definition ::= ( '(' ((identifier | qualified_identifier) (',' (identifier | qualified_identifier))*) ')' ',' '(' ((identifier | qualified_identifier) (',' (identifier | qualified_identifier))*) ')' ) | ((identifier | qualified_identifier) (',' (identifier | qualified_identifier))*)
+
+configuration ::= 'configuration' ((identifier | qualified_identifier) (',' (identifier | qualified_identifier))*)
+
+declarations ::= 'declare' (identifier ':=' 'new' identifier ('with' mapping)?)+
+
+component_expression ::= (component_expression '>>>' component_expression) | (component_expression '&&&' component_expression) | (component_expression '***' component_expression) | ('first' component_expression) | ('second' component_expression) | 'split' | ('merge' merge_mapping) | 'wire' mapping | ('if' condition_expression component_expression component_expression) | identifier
+
+merge_mapping ::= (('top' '[' (identifier | qualified_identifier) ']' '->' (identifier | qualified_identifier)) | ('bottom' '[' (identifier | qualified_identifier) ']') | (literal '->' (identifier | qualified_identifier))) (',' (('top' '[' (identifier | qualified_identifier) ']' '->' (identifier | qualified_identifier)) | ('bottom' '[' (identifier | qualified_identifier) ']') | (literal '->' (identifier | qualified_identifier))))*
+
+mapping ::= (((identifier | qualified_identifier | literal) '->' (identifier | qualified_identifier)) (',' ((identifier | qualified_identifier | literal) '->' (identifier | qualified_identifier)))*)
+
+condition_expression ::= condition_expression ('or' | 'and' | 'xor' | '==' | '!=' | '>' | '<' | '>=' | '<=') condition_expression | (identifier | qualified_identifier | literal | configuration_identifier) | '(' condition_expression ')'
+
+configuration_identifier ::= '@' (identifier | qualified_identifier)
+
+qualified_identifier ::= [a-zA-Z_][a-zA-Z0-9_]*('.'[a-zA-Z_][a-zA-Z0-9_]*)+
+
+identifier ::= [a-zA-Z_][a-zA-Z0-9_]*
+
+literal ::= [-]?[0-9]+('.'[0-9]+([eE][-+][0-9]+)?)? | '"' ('\'.|[^"])* '"' | [Tt][Rr][Uu][Ee] | [Ff][Aa][Ll][Ss][Ee]
