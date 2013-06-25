@@ -20,7 +20,7 @@ The top level symtax of a PCL file is shown in Figure \ref{fig:pcl-top-level}, a
 \item \textbf{Definition}: This portion is the component definition. It is an expression which defines how the constructed components are to be combined to create the computation required.
 \end{itemize}
 
-\subsection{Imports}
+\subsection{Imports}\label{subsec:imports}
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/imports}
@@ -93,17 +93,56 @@ component rainbow
   \caption{\texttt{configuration} : Component configuraton.}
   \label{fig:pcl-config}
 \end{figure}
+A component's configuration is static data that is primarily used for constructing import components. Configuration data is named using identifiers, which can be fully qualified. Figure \ref{fig:pcl-config} shows the configuration syntax. Configuration identifiers may also be used in \emph{if} components see Section \ref{sec:cond-expr} for details. A PCL can declare zero or more configuration identifiers.
+
+Figure \ref{fig:pcl-config-example} shows an example of configuration being declared in a PCL file. Here the \texttt{parallel\_sleep} component shall be constructed using two configuration values, namely \texttt{sleep\_command} and \texttt{sleep\_time}.
+\begin{figure}[h!]
+\begin{center}
+\begin{verbatim}
+import sleep as sleep
+
+component parallel_sleep
+    ...
+    configuration sleep_command, sleep_time
+    ...
+\end{verbatim}
+\end{center}
+\caption{Example declaration of PCL configuration.}
+\label{fig:pcl-config-example}
+\end{figure}
 
 \subsection{Declarations}
-\begin{figure}[!h]
+\begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/declarations}
   \caption{\texttt{declarations} : Imported component construction.}
   \label{fig:pcl-decls}
 \end{figure}
+The declaration section of a PCL file is where the imported components can be constructed using the configuration available in the importing component's PCL. Figure \ref{fig:pcl-decls} shows the syntax for component construction. All declarations are assigned to an identifier which shall be unique. The import alias (see Section \ref{subsec:imports}) is used to reference the imported component from which an instance is created. There is an optional \emph{with} clause which allows configuration to be mapped into a component's constructor. Figure \ref{fig:pcl-decl-example} shows a PCL snippet that is an example of constructing imported components. Here two instances of the same component are constructed, namely the \texttt{sleep} component, which has the alias \texttt{sleep\_component}. The \texttt{sleep} component specifies the configuration \texttt{command.sleep} so the \emph{with} clause maps the \texttt{parallel\_sleep} component's configuration to the \texttt{sleep} component's configuration.
+\begin{figure}
+\begin{center}
+\begin{verbatim}
+import sleep as sleep_component
+
+component parallel_sleep
+    input sleep_time
+    outputs (complete), (complete)
+    configuration sleep_command
+    declare
+        top_sleep := new sleep_component
+            with sleep_command -> command.sleep
+        bottom_sleep := new sleep_component
+            with sleep_command -> command.sleep
+    ...
+\end{verbatim}
+\end{center}
+\caption{Example of component construction.}
+\label{fig:pcl-decl-example}
+\end{figure}
+
 
 \subsection{Definition}
-\begin{figure}[!h]
+\begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/component_expression}
   \caption{\texttt{component\_expression} : Component defintion.}
@@ -111,7 +150,7 @@ component rainbow
 \end{figure}
 
 \subsection{Merge Mapping}
-\begin{figure}[!h]
+\begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/merge_mapping}
   \caption{\texttt{merge\_mapping} : Merge component mapping.}
@@ -119,7 +158,7 @@ component rainbow
 \end{figure}
 
 \subsection{Mapping}
-\begin{figure}[!h]
+\begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/mapping}
   \caption{\texttt{mapping} : Mapping.}
@@ -134,7 +173,7 @@ component rainbow
   \label{fig:pcl-wire-mapping}
 \end{figure}
 
-\subsection{Condition Expression}
+\subsection{Condition Expression}\label{sec:cond-expr}
 \begin{figure}[!h]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/condition_expression}
