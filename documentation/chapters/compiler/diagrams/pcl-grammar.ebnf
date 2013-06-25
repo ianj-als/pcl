@@ -1,6 +1,6 @@
 component ::= imports? 'component' identifier ('input' | 'inputs') port_definition ('output' | 'outputs') port_definition configuration? declarations? 'as' component_expression
 
-imports ::= 'import' (identifier | qualified_identifier) 'as' identifier
+imports ::= (('import' (identifier | qualified_identifier) 'as' identifier) ('import' (identifier | qualified_identifier) 'as' identifier)*)
 
 port_definition ::= ( '(' ((identifier | qualified_identifier) (',' (identifier | qualified_identifier))*) ')' ',' '(' ((identifier | qualified_identifier) (',' (identifier | qualified_identifier))*) ')' ) | ((identifier | qualified_identifier) (',' (identifier | qualified_identifier))*)
 
@@ -8,9 +8,11 @@ configuration ::= 'configuration' ((identifier | qualified_identifier) (',' (ide
 
 declarations ::= 'declare' (identifier ':=' 'new' identifier ('with' mapping)?)+
 
-component_expression ::= (component_expression '>>>' component_expression) | (component_expression '&&&' component_expression) | (component_expression '***' component_expression) | ('first' component_expression) | ('second' component_expression) | 'split' | ('merge' merge_mapping) | 'wire' mapping | ('if' condition_expression component_expression component_expression) | identifier
+component_expression ::= (component_expression '>>>' component_expression) | (component_expression '&&&' component_expression) | (component_expression '***' component_expression) | ('first' component_expression) | ('second' component_expression) | 'split' | ('merge' merge_mapping) | 'wire' wire_mapping | ('if' condition_expression component_expression component_expression) | identifier
 
-merge_mapping ::= (('top' '[' (identifier | qualified_identifier) ']' '->' (identifier | qualified_identifier)) | ('bottom' '[' (identifier | qualified_identifier) ']') | (literal '->' (identifier | qualified_identifier))) (',' (('top' '[' (identifier | qualified_identifier) ']' '->' (identifier | qualified_identifier)) | ('bottom' '[' (identifier | qualified_identifier) ']') | (literal '->' (identifier | qualified_identifier))))*
+merge_mapping ::= (('top' '[' (identifier | qualified_identifier) ']' | 'bottom' '[' (identifier | qualified_identifier) ']' | literal) '->' (identifier | qualified_identifier) (',' ('top' '[' (identifier | qualified_identifier) ']' | 'bottom' '[' (identifier | qualified_identifier) ']' | literal) '->' (identifier | qualified_identifier))*)
+
+wire_mapping ::= ( '(' mapping ')' ',' '(' mapping ')' | mapping )
 
 mapping ::= (((identifier | qualified_identifier | literal) '->' (identifier | qualified_identifier)) (',' ((identifier | qualified_identifier | literal) '->' (identifier | qualified_identifier)))*)
 
