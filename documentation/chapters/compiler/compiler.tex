@@ -3,14 +3,14 @@
 PLCc is the PCL compiler. It is located in the \texttt{src/pclc} directory of the Git clone and your path should be set according. This chapter introduces the PCL syntax using \emph{railroad diagrams}. Railroad diagrams illustrate valid PCL and are read from left to right, following the lines as a train would. The symbols in the yellow ovals are to be typed \emph{as is}. The symbols in the tan rectangles references another railroad diagram. The referenced diagram should be used to expand the rectangle in more valid PCL. Hexagons contain \emph{character classes} and specify a range of characters that will be accepted.
 
 \section{PCL Syntax}
-PCL is a free-form language which allows the programmer to use arbitrary whitespace to format your component definitions. Comments are a single line and should start with the \texttt{\#} and can appear at any point in a PCL file.
+PCL is a free-form language which allows the programmer to use arbitrary white-space to format your component definitions. Comments are a single line and should start with the \texttt{\#} and can appear at any point in a PCL file.
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/component}
   \caption{PCL file syntax.}
   \label{fig:pcl-top-level}
 \end{figure}
-The top level symtax of a PCL file is shown in Figure \ref{fig:pcl-top-level}, and consists of the following sections:
+The top level syntax of a PCL file is shown in Figure \ref{fig:pcl-top-level}, and consists of the following sections:
 \begin{itemize}
 \item \textbf{Imports}: Imports can be optionally specified. Importing, as in other language, makes available other components to the PCL component being written.
 \item \textbf{Component}: This starts the component definition and provides the name. The component's name must be the same as the filename. E.g., a component in \texttt{fred.pcl} must be called \texttt{fred}.
@@ -30,9 +30,9 @@ The top level symtax of a PCL file is shown in Figure \ref{fig:pcl-top-level}, a
 \end{figure}
 Extant PCL components can be used in other PCL components. The mechanism for using components is through importing. There can be zero or more imports in a PCL file. Figure \ref{fig:pcl-imports} shows the syntax for importing.
 
-The imported component is referenced using an identifier which can be fully qualified using a dot separated name. If the component is referenced using one or more dots the sequence of idenitifiers, apart from the last one, is used to address a package of components. The last identifier specifies the component name. The environment variable \texttt{PCL\_IMPORT\_PATH} is a colon separated list of directories from which a search shall take place for the PCL components. If this enivronment variable is not set then the current working directory is used as a starting point for the component search.
+The imported component is referenced using an identifier which can be fully qualified using a dot separated name. If the component is referenced using one or more dots the sequence of identifiers, apart from the last one, is used to address a package of components. The last identifier specifies the component name. The environment variable \texttt{PCL\_IMPORT\_PATH} is a colon separated list of directories from which a search shall take place for the PCL components. If this environment variable is not set then the current working directory is used as a starting point for the component search.
 
-Each imported component must specify an alias. This is the name by which this component shall be refered to in this PCL file. E.g., \texttt{import components.utility.sleep as sleep\_comp} shall import a PCL component called \texttt{sleep} from the package \texttt{components.utility} and shall be refered to as, i.e. has the alias, \texttt{sleep\_comp}.
+Each imported component must specify an alias. This is the name by which this component shall be referred to in this PCL file. E.g., \texttt{import components.utility.sleep as sleep\_comp} shall import a PCL component called \texttt{sleep} from the package \texttt{components.utility} and shall be refereed to as, i.e. has the alias, \texttt{sleep\_comp}.
 
 \subsection{Port Definition}
 \begin{figure}[h!]
@@ -91,7 +91,7 @@ component rainbow
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/configuration}
-  \caption{\texttt{configuration} : Component configuraton.}
+  \caption{\texttt{configuration} : Component configuration.}
   \label{fig:pcl-config}
 \end{figure}
 A component's configuration is static data that is primarily used for constructing import components. Configuration data is named using identifiers, which can be fully qualified. Figure \ref{fig:pcl-config} shows the configuration syntax. Configuration identifiers may also be used in \emph{if} components see Section \ref{sec:if} for details. A PCL can declare zero or more configuration identifiers.
@@ -154,11 +154,11 @@ component parallel_sleep
 Here two instances of the same component are constructed, namely the \texttt{sleep} component, which has the alias \texttt{sleep\_component}. The \texttt{sleep} component specifies the configuration \texttt{command.sleep} so the \emph{with} clause maps the \texttt{parallel\_sleep} component's configuration to the \texttt{sleep} component's configuration. The \texttt{message} component, on the other hand, requires no configuration in order to construct it.
 
 \subsection{Definition}
-This section of the PCL file is where the component's computation is to be defined. The components constructed in the declarations are to be combined to produce a composit component. Figure \ref{fig:pcl-def} shows the recursive syntax, which builds a single expression, for this section.
+This section of the PCL file is where the component's computation is to be defined. The components constructed in the declarations are to be combined to produce a composite component. Figure \ref{fig:pcl-def} shows the recursive syntax, which builds a single expression, for this section.
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/component_expression}
-  \caption{\texttt{component\_expression} : Component defintion.}
+  \caption{\texttt{component\_expression} : Component definition.}
   \label{fig:pcl-def}
 \end{figure}
 
@@ -192,11 +192,11 @@ Hence, for two components:
 Then $c_1\ ***\ c_2$ shall yield a two input and output port component with:
 \begin{itemize}
 \item Input port specification $(b), (d)$, and
-\item Output port specificiation $(c), (e)$.
+\item Output port specification $(c), (e)$.
 \end{itemize}
 
 \subsubsection{Split}
-Split is a pre-defined component which has one input port and two output ports. Split simply takes the signals on it's input and copies them to both output ports. Hence, \emph{spliting} the input to the output.
+Split is a pre-defined component which has one input port and two output ports. Split simply takes the signals on it's input and copies them to both output ports. Hence, \emph{splitting} the input to the output.
 
 \subsubsection{Fanout}
 The \texttt{\&\&\&} combinator yields a component with one input port and two output ports. It is defined as:
@@ -213,7 +213,7 @@ Consider two components:
 Then $c_1\ \&\&\&\ c_2$ shall yield a one input and two output port component with:
 \begin{itemize}
 \item Input port specification $b$, and
-\item Output port specificiation $(c), (d)$.
+\item Output port specification $(c), (d)$.
 \end{itemize}
 
 PCLc verifies that components, used with the fanout combinator, have compatible ports and signals. The compiler will report errors if there are incompatible components used.
@@ -228,7 +228,7 @@ The merge mapping syntax is shown in Figure \ref{fig:pcl-merge-mapping}.
   \caption{\texttt{merge\_mapping} : Merge component mapping.}
   \label{fig:pcl-merge-mapping}
 \end{figure}
-The merge mapping specifies which signals from the \emph{top} and \emph{bottom} input ports shall be mapped to the output port to unqiuely named signals. Constant values can also be introduced to the output. Further to this, signals can be dropped, that is, a signal that is not passed onto the subsequent component.
+The merge mapping specifies which signals from the \emph{top} and \emph{bottom} input ports shall be mapped to the output port to uniquely named signals. Constant values can also be introduced to the output. Further to this, signals can be dropped, that is, a signal that is not passed onto the subsequent component.
 
 Consider a component with two output ports, with the following port specification
 \begin{center}
@@ -259,7 +259,7 @@ This merge mapping does the following:
 Other constant literals can be used in a merge mapping and are described in Section \ref{sec:literals}.
 
 \subsubsection{Wire}
-Wire components are used to adapt one component's output signals to match the expected input signals of a subsequent component. Wires can only be used to adapt adjecent components that have an equal number of ports, i.e., the resultant wire component always has the same number of input ports as output ports. The \emph{wire mapping} determines whether a one or two port component is being adapted, this is shown in Figure \ref{fig:pcl-wire-mapping}.
+Wire components are used to adapt one component's output signals to match the expected input signals of a subsequent component. Wires can only be used to adapt adjacent components that have an equal number of ports, i.e., the resultant wire component always has the same number of input ports as output ports. The \emph{wire mapping} determines whether a one or two port component is being adapted, this is shown in Figure \ref{fig:pcl-wire-mapping}.
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/wire_mapping}
@@ -315,21 +315,47 @@ $(source\_filename,\ source\_language),\ (object\_filename,\ object\_language)$
 respectively.
 
 \subsubsection{If}\label{sec:if}
+The \emph{if} component provides a mechanism to conditionally execute components in a pipeline. The first argument to the \emph{if} component is a condition expression, the second is the \emph{then} component, and the third is the \emph{else} component. The \emph{then} and \emph{else} components \emph{must}:
+\begin{itemize}
+\item only specify one input port,
+\item specify identical signals on the input ports,
+\item have identical numbers of output ports (one or two), and
+\item specify identical signals in their output ports.
+\end{itemize}
 
-\begin{figure}[!h]
+If the condition expression is evaluated to a truthy value the \emph{then} component shall be executed, otherwise the \emph{else} component is executed.
+\begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/condition_expression}
   \caption{\texttt{condition\_expression} : If component's condition expression.}
   \label{fig:pcl-cond-expr}
 \end{figure}
-
-\subsection{Configuration Identifier}
-\begin{figure}[!h]
+In Figure \ref{fig:pcl-cond-expr} the recursive syntax for the condition expression is shown. A condition expression is built up using the logical operators (\texttt{or}, \texttt{and}, and \texttt{xor})\footnote{Hopefully these operators require no explanation.}, and the relational operators (\texttt{==}, \texttt{!=}, \texttt{>}, \texttt{<}, \texttt{>=}, \texttt{<=})\footnote{And these! ;)}. The \texttt{identifier} and \texttt{qualified\_identifier} refer to the signals in the input ports of the \emph{then} and \emph{else} components. Also, configuration identifiers may be used in a condition expression, the grammar of which is shown in Figure \ref{fig:pcl-config-id}.
+\begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/configuration_identifier}
   \caption{\texttt{configuration\_identifier} : If component's condition expression configuration identifier.}
   \label{fig:pcl-config-id}
 \end{figure}
+This allows both the values of input port signals and configuration to be used to decide on which component to execute.
+
+Consider the following PCL snippet:
+\begin{center}
+  \begin{verbatim}
+...
+component conditional
+  inputs a, b
+  outputs z
+  configuration f
+  ...
+  as
+    if (a == True or a != b) and @f == False
+       then_component
+       else_component
+    ...
+  \end{verbatim}
+\end{center}
+The \texttt{then\_component} shall only be executed if the input \texttt{a} is true or \texttt{a} and \texttt{b} are equal, and the configuration \texttt{f} is false.
 
 \subsection{Qualified Identifier}
 \begin{figure}[!h]
