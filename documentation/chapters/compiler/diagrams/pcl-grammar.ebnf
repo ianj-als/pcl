@@ -6,15 +6,17 @@ port_definition ::= ( '(' ((identifier | qualified_identifier) (',' (identifier 
 
 configuration ::= 'configuration' ((identifier | qualified_identifier) (',' (identifier | qualified_identifier))*)
 
-declarations ::= 'declare' (identifier ':=' 'new' identifier ('with' mapping)?)+
+declarations ::= 'declare' (identifier ':=' 'new' identifier ('with' configuration_mapping)?)+
+
+configuration_mapping ::= (((identifier | qualified_identifier | literal) '->' (identifier | qualified_identifier)) (',' ((identifier | qualified_identifier | literal) '->' (identifier | qualified_identifier)))*)
 
 component_expression ::= (component_expression '>>>' component_expression) | (component_expression '&&&' component_expression) | (component_expression '***' component_expression) | ('first' component_expression) | ('second' component_expression) | 'split' | ('merge' merge_mapping) | 'wire' wire_mapping | ('if' condition_expression component_expression component_expression) | identifier
 
-merge_mapping ::= (('top' '[' (identifier | qualified_identifier) ']' | 'bottom' '[' (identifier | qualified_identifier) ']' | literal) '->' (identifier | qualified_identifier) (',' ('top' '[' (identifier | qualified_identifier) ']' | 'bottom' '[' (identifier | qualified_identifier) ']' | literal) '->' (identifier | qualified_identifier))*)
+merge_mapping ::= (('top' '[' (identifier | qualified_identifier) ']' | 'bottom' '[' (identifier | qualified_identifier) ']' | literal) '->' (identifier | qualified_identifier | '_') (',' ('top' '[' (identifier | qualified_identifier) ']' | 'bottom' '[' (identifier | qualified_identifier) ']' | literal) '->' (identifier | qualified_identifier | '_'))*)
 
 wire_mapping ::= ( '(' mapping ')' ',' '(' mapping ')' | mapping )
 
-mapping ::= (((identifier | qualified_identifier | literal) '->' (identifier | qualified_identifier)) (',' ((identifier | qualified_identifier | literal) '->' (identifier | qualified_identifier)))*)
+mapping ::= (((identifier | qualified_identifier | literal) '->' (identifier | qualified_identifier | '_')) (',' ((identifier | qualified_identifier | literal) '->' (identifier | qualified_identifier | '_')))*)
 
 condition_expression ::= condition_expression ('or' | 'and' | 'xor' | '==' | '!=' | '>' | '<' | '>=' | '<=') condition_expression | (identifier | qualified_identifier | literal | configuration_identifier) | '(' condition_expression ')'
 

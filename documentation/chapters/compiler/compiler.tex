@@ -3,6 +3,7 @@
 PLCc is the PCL compiler. It is located in the \texttt{src/pclc} directory of the Git clone and your path should be set according. This chapter introduces the PCL syntax using \emph{railroad diagrams}. Railroad diagrams illustrate valid PCL and are read from left to right, following the lines as a train would. The symbols in the yellow ovals are to be typed \emph{as is}. The symbols in the tan rectangles references another railroad diagram. The referenced diagram should be used to expand the rectangle in more valid PCL. Hexagons contain \emph{character classes} and specify a range of characters that will be accepted.
 
 \section{PCL Syntax}
+PCL is a free-form language which allows the programmer to use arbitrary whitespace to format your component definitions. Comments are a single line and should start with the \texttt{\#} and can appear at any point in a PCL file.
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/component}
@@ -93,7 +94,7 @@ component rainbow
   \caption{\texttt{configuration} : Component configuraton.}
   \label{fig:pcl-config}
 \end{figure}
-A component's configuration is static data that is primarily used for constructing import components. Configuration data is named using identifiers, which can be fully qualified. Figure \ref{fig:pcl-config} shows the configuration syntax. Configuration identifiers may also be used in \emph{if} components see Section \ref{sec:cond-expr} for details. A PCL can declare zero or more configuration identifiers.
+A component's configuration is static data that is primarily used for constructing import components. Configuration data is named using identifiers, which can be fully qualified. Figure \ref{fig:pcl-config} shows the configuration syntax. Configuration identifiers may also be used in \emph{if} components see Section \ref{sec:if} for details. A PCL can declare zero or more configuration identifiers.
 
 Figure \ref{fig:pcl-config-example} shows an example of configuration being declared in a PCL file. Here the \texttt{parallel\_sleep} component shall be constructed using two configuration values, namely \texttt{sleep\_command} and \texttt{sleep\_time}.
 \begin{figure}[h!]
@@ -114,15 +115,25 @@ component parallel_sleep
 \subsection{Declarations}
 \begin{figure}[h!]
   \centering
-    \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/declarations}
+    \includegraphics[scale=0.45]{chapters/compiler/diagrams/declarations}
   \caption{\texttt{declarations} : Imported component construction.}
   \label{fig:pcl-decls}
 \end{figure}
-The declaration section of a PCL file is where the imported components can be constructed using the configuration available in the importing component's PCL. Figure \ref{fig:pcl-decls} shows the syntax for component construction. All declarations are assigned to an identifier which shall be unique. The import alias (see Section \ref{subsec:imports}) is used to reference the imported component from which an instance is created. There is an optional \emph{with} clause which allows configuration to be mapped into a component's constructor. Figure \ref{fig:pcl-decl-example} shows a PCL snippet that is an example of constructing imported components. Here two instances of the same component are constructed, namely the \texttt{sleep} component, which has the alias \texttt{sleep\_component}. The \texttt{sleep} component specifies the configuration \texttt{command.sleep} so the \emph{with} clause maps the \texttt{parallel\_sleep} component's configuration to the \texttt{sleep} component's configuration.
-\begin{figure}
+The declaration section of a PCL file is where the imported components can be constructed using the configuration available in the importing component's PCL. Figure \ref{fig:pcl-decls} shows the syntax for component construction. All declarations are assigned to an identifier which shall be unique. The import alias (see Section \ref{subsec:imports}) is used to reference the imported component from which an instance is created. There is an optional \emph{with} clause which allows configuration to be mapped into a component's constructor. Figure \ref{fig:pcl-config-mapping} shows the configuration mapping syntax
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/configuration_mapping}
+  \caption{\texttt{configuration\_mapping} : Declaration configuration mapping}
+  \label{fig:pcl-config-mapping}
+\end{figure}
+
+
+The PCL snippet in Figure \ref{fig:pcl-decl-example} shows an example of constructing imported components.
+\begin{figure}[h!]
 \begin{center}
 \begin{verbatim}
 import sleep as sleep_component
+import message as message_component
 
 component parallel_sleep
     input sleep_time
@@ -133,15 +144,17 @@ component parallel_sleep
             with sleep_command -> command.sleep
         bottom_sleep := new sleep_component
             with sleep_command -> command.sleep
+        message_world := new message_component
     ...
 \end{verbatim}
 \end{center}
 \caption{Example of component construction.}
 \label{fig:pcl-decl-example}
 \end{figure}
-
+Here two instances of the same component are constructed, namely the \texttt{sleep} component, which has the alias \texttt{sleep\_component}. The \texttt{sleep} component specifies the configuration \texttt{command.sleep} so the \emph{with} clause maps the \texttt{parallel\_sleep} component's configuration to the \texttt{sleep} component's configuration. The \texttt{message} component, on the other hand, requires no configuration in order to construct it.
 
 \subsection{Definition}
+This section of the PCL file is where the component's computation is to be defined. The components constructed in the declarations are to be combined to produce a composit component. Figure \ref{fig:pcl-def} shows the recursive syntax, which builds a single expression, for this section.
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/component_expression}
@@ -149,31 +162,160 @@ component parallel_sleep
   \label{fig:pcl-def}
 \end{figure}
 
-\subsection{Merge Mapping}
+\subsubsection{Composition}
+The \texttt{>>>} combinator sequences two components, one after the other. For example \texttt{comp\_one >>> comp\_two} will produce a component which will apply the output of \texttt{comp\_one} to the input of \texttt{comp\_two}.
+
+Consider two components both with one input and output port, the first component, $c_1$, has an input signal called \texttt{b} and output signal called \texttt{c}, and the second component, $c_2$, has an input signal called \texttt{c} and an output signal called \texttt{d}. Then composing these components, $c_1 >>> c_2$, yields a component whose input signal is called \texttt{b} and an output signal called \texttt{d}.
+
+In order for the components to compose the output of the left-hand side must be compatible with the input of the right-hand side. That is, the number of ports must be identical and the signals must correspond. PCLc will produce an error during compilation if the components are not compatible.
+
+\subsubsection{First}
+The \texttt{first} combinator takes a single component and produces a two input and output port component. The \emph{top}, or \emph{first}, element of the input is applied to the component, whilst the \emph{bottom}, or \emph{second}, input element passes through the resultant component untouched. This second input signal's value is remembered across the computation of the provided component.
+
+Consider a component, $c$, with one input and one output port whose signals are \texttt{b} and \texttt{c} respectively. Applying the \texttt{first} combinator to $c$, with $first\ c$, yields a component that has two input ports with the port specification $(b), (d)$, and two output ports with specification, $(c), (d)$.
+
+\subsubsection{Second}
+The \texttt{second} combinator takes a single component and produces a two input and output port component. The \emph{bottom}, or \emph{second}, element of the input is applied to the component, whilst the \emph{top}, or \emph{first}, input element passes through the resultant component untouched. This first input signal's value is remembered across the computation of the provided component.
+
+Consider a component, $c$, with one input and one output port whose signals are \texttt{b} and \texttt{c} respectively. Applying the \texttt{second} combinator to $c$, with $second\ c$, yields a component that has two input ports with the port specification $(d), (b)$, and two output ports with specification, $(d), (c)$.
+
+\subsubsection{Parallel}
+The \texttt{***} combinator composes two components such that they run in \emph{parallel}. This combinator is best explained in terms of the first, second and composition combinators. Thus,
+\begin{center}
+$a\ ***\ b\ =\ first\ a\ >>>\ second\ b$
+\end{center}
+Hence, for two components:
+\begin{itemize}
+\item $c_1$: One input port, with port specification $b$, and one output port, with specification $c$, and
+\item $c_2$: One input port, with port specification $d$, and one output port, with specification $e$.
+\end{itemize}
+Then $c_1\ ***\ c_2$ shall yield a two input and output port component with:
+\begin{itemize}
+\item Input port specification $(b), (d)$, and
+\item Output port specificiation $(c), (e)$.
+\end{itemize}
+
+\subsubsection{Split}
+Split is a pre-defined component which has one input port and two output ports. Split simply takes the signals on it's input and copies them to both output ports. Hence, \emph{spliting} the input to the output.
+
+\subsubsection{Fanout}
+The \texttt{\&\&\&} combinator yields a component with one input port and two output ports. It is defined as:
+\begin{center}
+$a\ \&\&\&\ b\ =\ split\ >>>\ (first\ a\ ***\ second\ b)$
+\end{center}
+Since \texttt{split} is begin used both components, $a$ and $b$, require their input port signal to be compatible with the input to split.
+
+Consider two components:
+\begin{itemize}
+\item $c_1$: One input port, with port specification $b$, and one output port, with specification $c$, and
+\item $c_2$: One input port, with port specification $b$, and one output port, with specification $d$.
+\end{itemize}
+Then $c_1\ \&\&\&\ c_2$ shall yield a one input and two output port component with:
+\begin{itemize}
+\item Input port specification $b$, and
+\item Output port specificiation $(c), (d)$.
+\end{itemize}
+
+PCLc verifies that components, used with the fanout combinator, have compatible ports and signals. The compiler will report errors if there are incompatible components used.
+
+\subsubsection{Merge}
+The merge component is a pre-defined component that expects a mapping and \emph{merges} the output from a two output port component to a single port component. Hence, a merge component has two input ports and one output port.
+
+The merge mapping syntax is shown in Figure \ref{fig:pcl-merge-mapping}.
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/merge_mapping}
   \caption{\texttt{merge\_mapping} : Merge component mapping.}
   \label{fig:pcl-merge-mapping}
 \end{figure}
+The merge mapping specifies which signals from the \emph{top} and \emph{bottom} input ports shall be mapped to the output port to unqiuely named signals. Constant values can also be introduced to the output. Further to this, signals can be dropped, that is, a signal that is not passed onto the subsequent component.
 
-\subsection{Mapping}
-\begin{figure}[h!]
-  \centering
-    \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/mapping}
-  \caption{\texttt{mapping} : Mapping.}
-  \label{fig:pcl-mapping}
-\end{figure}
+Consider a component with two output ports, with the following port specification
+\begin{center}
+$(src.file.name,\ src.file.size),\ (obj.file.name,\ obj.file.size)$
+\end{center}
+that needs merging into a single port, with specification:
+\begin{center}
+$source\_filename,\ object\_filename,\ source\_language$
+\end{center}
+The following merge expression could be used:
+\begin{center}
+  \begin{verbatim}
+merge top[src.file.name] -> source_filename,
+      top[src.file.size] -> _,
+      bottom[obj.file.name] -> object_filename,
+      bottom[obj.file.size] -> _,
+      "PCL" -> source_language
+  \end{verbatim}
+\end{center}
+This merge mapping does the following:
+\begin{itemize}
+\item The signal \texttt{src.file.name}, in the \emph{top} input port, is mapped to the output port signal \texttt{source\_filename},
+\item The signal \texttt{src.file.size}, in the \emph{top} input port, is dropped and is not present in the output port signals,
+\item The signal \texttt{obj.file.name}, in the \emph{bottom} input port, is mapped to the output port signal \texttt{object\_filename},
+\item The signal \texttt{obj.file.size}, in the \emph{bottom} input port, is dropped and is not present in the output port signals, and
+\item The string literal \texttt{PCL} is mapped into the output port's \texttt{source\_language} signal.
+\end{itemize}
+Other constant literals can be used in a merge mapping and are described in Section \ref{sec:literals}.
 
-\subsection{Wire Mapping}
+\subsubsection{Wire}
+Wire components are used to adapt one component's output signals to match the expected input signals of a subsequent component. Wires can only be used to adapt adjecent components that have an equal number of ports, i.e., the resultant wire component always has the same number of input ports as output ports. The \emph{wire mapping} determines whether a one or two port component is being adapted, this is shown in Figure \ref{fig:pcl-wire-mapping}.
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/wire_mapping}
   \caption{\texttt{wire\_mapping} : Wire mapping.}
   \label{fig:pcl-wire-mapping}
 \end{figure}
+The mapping syntax is shown in Figure \ref{fig:pcl-mapping}.
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/mapping}
+  \caption{\texttt{mapping} : Mapping.}
+  \label{fig:pcl-mapping}
+\end{figure}
+In common with the merge mapping, signals can be mapped into other signals, dropped, or assigned literal values.
 
-\subsection{Condition Expression}\label{sec:cond-expr}
+Consider the following wire component:
+\begin{center}
+  \begin{verbatim}
+wire src.file.name -> source_filename,
+     src.file.size -> _,
+     "PCL" -> source_language
+  \end{verbatim}
+\end{center}
+This mapping adapts two components with one output and one input port with the following port specifications,
+\begin{center}
+$src.file.name,\ src.file.size$
+\end{center}
+and
+\begin{center}
+$source\_filename,\ source\_language$
+\end{center}
+respectively.
+
+A two input and output port wire is defined thus,
+\begin{center}
+  \begin{verbatim}
+wire (src.file.name -> source_filename,
+      src.file.size -> _,
+      "PCL" -> source_language),
+     (obj.file.name -> object_filename,
+      obj.file.size -> _,
+      "Python" -> object_language)
+  \end{verbatim}
+\end{center}
+This mapping adapts two components with two output and two input ports with the following port specifications,
+\begin{center}
+$(src.file.name,\ src.file.size),\ (obj.file.name,\ obj.file.size)$
+\end{center}
+and
+\begin{center}
+$(source\_filename,\ source\_language),\ (object\_filename,\ object\_language)$
+\end{center}
+respectively.
+
+\subsubsection{If}\label{sec:if}
+
 \begin{figure}[!h]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/condition_expression}
@@ -205,7 +347,7 @@ component parallel_sleep
   \label{fig:pcl-id}
 \end{figure}
 
-\subsection{Literal}
+\subsection{Literal}\label{sec:literals}
 \begin{figure}[!h]
   \centering
     \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/literal}
