@@ -38,7 +38,7 @@ from parser.expressions import CompositionExpression, \
      StateIdentifier
 from pypeline.core.types.just import Just
 from pypeline.core.types.nothing import Nothing
-from first_pass_resolver_visitor import resolve_expression_once, type_formatting_fn
+from first_pass_resolver_visitor import type_formatting_fn
 from second_pass_resolver_visitor import SecondPassResolverVisitor
 
 
@@ -114,7 +114,6 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
                                         'bottom_inputs' : bottom_inputs >= type_formatting_fn})
 
     @multimethod(IfExpression)
-    @resolve_expression_once
     def visit(self, if_expr):
         # Store the current if expression for condition expression resolution
         self._current_if_expr = if_expr

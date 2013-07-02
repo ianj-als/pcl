@@ -32,7 +32,7 @@ from parser.expressions import UnaryExpression, \
      SplitExpression
 from pypeline.core.types.just import Just
 from pypeline.core.types.nothing import Nothing
-from first_pass_resolver_visitor import FirstPassResolverVisitor, resolve_expression_once
+from first_pass_resolver_visitor import FirstPassResolverVisitor
 
 
 @multimethodclass
@@ -86,7 +86,6 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
         return self.__walk_expression(node.parent, node)
 
     @multimethod(FirstExpression)
-    @resolve_expression_once
     def visit(self, first_expr):
         top_inputs = first_expr.expression.resolution_symbols['inputs']
         top_outputs = first_expr.expression.resolution_symbols['outputs']
@@ -102,7 +101,6 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
                                                                    (lambda bouts: Just((touts, bouts))))
 
     @multimethod(SecondExpression)
-    @resolve_expression_once
     def visit(self, second_expr):
         # Derive the top inputs
         inputs = self.__derive_inputs(second_expr)
@@ -117,7 +115,6 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
                                                                    (lambda bouts: Just((touts, bouts))))
 
     @multimethod(SplitExpression)
-    @resolve_expression_once
     def visit(self, split_expr):
         # Derive the inputs
         inputs = self.__derive_inputs(split_expr)

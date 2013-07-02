@@ -51,8 +51,7 @@ from expressions import Literal, \
      WireExpression, \
      WireTupleExpression, \
      IfExpression, \
-     IdentifierExpression, \
-     LiteralExpression
+     IdentifierExpression
 from mappings import Mapping, \
      TopMapping, \
      BottomMapping, \
@@ -196,7 +195,6 @@ def p_unary_expression(p):
                         | wire_expression
                         | if_expression
                         | identifier_expression
-                        | literal_expression
                         | '(' arrow_expression ')' '''
     if len(p) > 2:
         p[0] = UnaryExpression(p.parser.filename, p[2].lineno, p[2])
@@ -237,10 +235,6 @@ def p_if_expression(p):
 def p_identifier_expression(p):
     '''identifier_expression : identifier_or_qual_identifier'''
     p[0] = IdentifierExpression(p.parser.filename, p[1].lineno, p[1])
-
-def p_literal_expression(p):
-    '''literal_expression : literal'''
-    p[0] = LiteralExpression(p.parser.filename, p[1].lineno, p[1])
 
 def p_merge_mappings(p):
     '''merge_mappings : merge_mapping ',' merge_mappings

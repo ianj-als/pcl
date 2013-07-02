@@ -52,8 +52,7 @@ from parser.expressions import Literal, \
      WireExpression, \
      WireTupleExpression, \
      IfExpression, \
-     IdentifierExpression, \
-     LiteralExpression
+     IdentifierExpression
 from parser.mappings import Mapping, \
      TopMapping, \
      BottomMapping, \
@@ -742,6 +741,3 @@ class FirstPassResolverVisitor(ResolverVisitor):
         iden_expr.resolution_symbols['inputs'] = transform_fn(inputs)
         iden_expr.resolution_symbols['outputs'] = transform_fn(outputs)
 
-    @multimethod(LiteralExpression)
-    def visit(self, literal_expr):
-        pass

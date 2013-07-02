@@ -34,7 +34,7 @@ The imported component is referenced using an identifier which can be fully qual
 
 Each imported component must specify an alias. This is the name by which this component shall be referred to in this PCL file. E.g., \texttt{import components.utility.sleep as sleep\_comp} shall import a PCL component called \texttt{sleep} from the package \texttt{components.utility} and shall be refereed to as, i.e. has the alias, \texttt{sleep\_comp}.
 
-\subsection{Port Definition}
+\subsection{Port Definition}\label{subsec:port-def}
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/port_definition}
@@ -87,7 +87,7 @@ component rainbow
 
 \end {itemize}
 
-\subsection{Configuration}
+\subsection{Configuration}\label{subsec:config}
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/configuration}
@@ -112,7 +112,7 @@ component parallel_sleep
 \label{fig:pcl-config-example}
 \end{figure}
 
-\subsection{Declarations}
+\subsection{Declarations}\label{subsec:decls}
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=0.45]{chapters/compiler/diagrams/declarations}
@@ -203,7 +203,7 @@ The \texttt{\&\&\&} combinator yields a component with one input port and two ou
 \begin{center}
 $a\ \&\&\&\ b\ =\ split\ >>>\ (first\ a\ ***\ second\ b)$
 \end{center}
-Since \texttt{split} is begin used both components, $a$ and $b$, require their input port signal to be compatible with the input to split.
+Since \texttt{split} is begin used both components, $a$ and $b$, require their input port signals to be compatible with the input to split.
 
 Consider two components:
 \begin{itemize}
@@ -218,7 +218,7 @@ Then $c_1\ \&\&\&\ c_2$ shall yield a one input and two output port component wi
 
 PCLc verifies that components, used with the fanout combinator, have compatible ports and signals. The compiler will report errors if there are incompatible components used.
 
-\subsubsection{Merge}
+\subsubsection{Merge}\label{subsubsec:merge}
 The merge component is a pre-defined component that expects a mapping and \emph{merges} the output from a two output port component to a single port component. Hence, a merge component has two input ports and one output port.
 
 The merge mapping syntax is shown in Figure \ref{fig:pcl-merge-mapping}.
@@ -258,7 +258,7 @@ This merge mapping does the following:
 \end{itemize}
 Other constant literals can be used in a merge mapping and are described in Section \ref{sec:literals}.
 
-\subsubsection{Wire}
+\subsubsection{Wire}\label{subsubsec:wire}
 Wire components are used to adapt one component's output signals to match the expected input signals of a subsequent component. Wires can only be used to adapt adjacent components that have an equal number of ports, i.e., the resultant wire component always has the same number of input ports as output ports. The \emph{wire mapping} determines whether a one or two port component is being adapted, this is shown in Figure \ref{fig:pcl-wire-mapping}.
 \begin{figure}[h!]
   \centering
@@ -357,24 +357,42 @@ component conditional
 \end{center}
 The \texttt{then\_component} shall only be executed if the input \texttt{a} is true or \texttt{a} and \texttt{b} are equal, and the configuration \texttt{f} is false.
 
-\subsection{Qualified Identifier}
-\begin{figure}[!h]
-  \centering
-    \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/qualified_identifier}
-  \caption{\texttt{qualified\_identifier} : Qualified identifier.}
-  \label{fig:pcl-qualified-id}
-\end{figure}
-
 \subsection{Identifier}
-\begin{figure}[!h]
+In common with other programming languages PCL offers identifiers which can start with a letter or an underscore and then any number of letters, numbers or underscores, or diagrammatically see Figure \ref{fig:pcl-id}.
+\begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/identifier}
   \caption{\texttt{identifier} : Identifier.}
   \label{fig:pcl-id}
 \end{figure}
 
+\subsection{Qualified Identifier}
+Qualified identifiers allows PCL developers to namespace their identifiers using dot separated identifiers, e.g., \texttt{tokeniser.source.filename}. Their syntax is shown in Figure \ref{fig:pcl-qualified-id}.
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/qualified_identifier}
+  \caption{\texttt{qualified\_identifier} : Qualified identifier.}
+  \label{fig:pcl-qualified-id}
+\end{figure}
+Qualified identifiers are available for use in:
+\begin{itemize}
+\item Imports: qualified identifiers are used to address compiled PCL components (see Section \ref{subsec:imports}),
+\item Port definitions: input and output signals can be namespaced for clarity (see Section \ref{subsec:port-def}),
+\item Configuration: configuration identifiers can be namespaced for clarity (see Section \ref{subsec:config}),
+\item Declarations: configuration mapping may required namespaced configuration to be used (see Section \ref{subsec:decls}),
+\item Merge and wire mappings: mapped port can contain namespaced signal names (see Section \ref{subsubsec:merge} and Section \ref{subsubsec:wire} respectively), and
+\item \emph{If} conditions: configuration used in \emph{if} condition expressions may be namespaced (see Section \ref{sec:if}).
+\end{itemize}
+
 \subsection{Literal}\label{sec:literals}
-\begin{figure}[!h]
+Literal constants can be used to inject values into component constructors, merge and wire mappings, and \emph{if} condition expressions. They take the form of:
+\begin{itemize}
+\item Numbers: integer and floating point, e.g., \texttt{-7}, \texttt{2.71828}, \texttt{6.674e-11},
+\item Strings: string must be quoted using double quotes (\texttt{"}) and special characters can be escaped using a backslash (\textbackslash), e.g. \texttt{"This is a line of text\textbackslash n"}, and \texttt{"Quoting is \textbackslash"allowed\textbackslash" by escaping the quotes"}, and
+\item Booleans: \texttt{true} and \texttt{false}.
+\end{itemize}
+Figure \ref{fig:pcl-literal} shows their syntax.
+\begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale,angle=90]{chapters/compiler/diagrams/literal}
   \caption{\texttt{literal} : Literal.}
@@ -383,7 +401,7 @@ The \texttt{then\_component} shall only be executed if the input \texttt{a} is t
 
 \subsection{Example PCL file}
 This example PCL file can be found in the \texttt{parallel\_sleep} example PCL.
-\begin{figure}[!h]
+\begin{figure}[h!]
   \begin{verbatim}
 import sleep as sleep
 
@@ -399,5 +417,40 @@ component parallel_sleep
   \end{verbatim}
   \caption{Example PCL file.}
 \end{figure}
+This component constructs two sleep components using a static sleep command to execute. The two sleep components are composed using the fanout operation, such that they run in parallel. Other example PCL files can be found in the \texttt{examples} directory of your Git clone.
 
 \section{Usage}
+Ensure you have \texttt{src/pclc/pclc.py} in your platform path. Running \texttt{pclc.py -h} yields:
+\begin{verbatim}
+Usage: pclc.py [options] [PCL file]
+
+Options:
+  -h, --help            show this help message and exit
+  -l LOGLEVEL, --loglevel=LOGLEVEL
+                        parser log file reporting level
+                        [default: WARN]
+  -i, --instrument      Generated code shall instrument
+                        components
+  -v, --version         show version and exit
+\end{verbatim}
+
+The command-line options are:
+\begin{itemize}
+\item \texttt{-h}, \texttt{--help}: Display the help message,
+\item \texttt{-l}, \texttt{--loglevel}: The logging level for the \texttt{pclc.log} file that is created during compilation. This file, depending on log level, shall show information about the parsing internals of PCLc,
+\item \texttt{-i}, \texttt{--instrument}: Specifying this flag shall add code to the generated component which shall log to standard error when component starts and finishes. The log messages are time stamped so can be used as a rudimentary profiling tool, and
+\item \texttt{-v}, \texttt{--version}: Show the version of PCLc.
+\end{itemize}
+
+For example, change directory to \texttt{src/examples/parallel\_sleep} and issue the command:
+\begin{verbatim}
+pclc.py -i parallel_sleep.pcl
+\end{verbatim}
+The compilation process will generate three new files:
+\begin{itemize}
+\item \texttt{parallel\_sleep.py}: The object code from the compilation. PCL compiles to Python and this file shall be used by the runtime to build the final pipeline,
+\item \texttt{\_\_init\_\_.py}: Since the compiled PCL is a Python module, in order to import it at runtime PCLc must write this file to show that this is a Python package, and
+\item \texttt{pclc.log}: The log file for the compilation. This is mainly used for support but may be of interest to others.
+\end{itemize}
+
+In the next chapter you will see how to run pipelines using the Python based runtime.

@@ -1,1 +1,8 @@
 \chapter{PCL Runtime}
+
+
+\subsection{Gotchas}
+PCL allows for components to be defined in hierarchical namespace. All directories that do not contain PCL files must contain \texttt{\_\_init\_\_.py} in order for the Python runtime to ``see'' these directories as Python packages. Failure to do so will yield an error in the form:
+\begin{verbatim}
+ERROR: Failed to import PCL module parallel_sleep: No module named parallel_sleep
+\end{verbatim}

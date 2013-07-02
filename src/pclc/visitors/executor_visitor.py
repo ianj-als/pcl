@@ -50,8 +50,7 @@ from parser.expressions import Literal, \
      WireExpression, \
      WireTupleExpression, \
      IfExpression, \
-     IdentifierExpression, \
-     LiteralExpression
+     IdentifierExpression
 from parser.mappings import Mapping, \
      TopMapping, \
      BottomMapping, \
@@ -73,10 +72,12 @@ class ExecutorVisitor(object):
                "from pypeline.core.arrows.kleisli_arrow_choice import KleisliArrowChoice\n" \
                "from pypeline.core.types.either import Left, Right\n" \
                "from pypeline.core.types.state import return_\n"
-    __INSTRUMENTATION_FUNCTION = "import sys, threading, datetime\n" \
-                                 "def ____instr_component(invoked_component, component_id, event, a):\n" \
-                                 "  print >> sys.stderr, '%s: %s: Component %s (id = %s) is %s' % (datetime.datetime.now().strftime('%x %X.%f'), threading.current_thread().name, invoked_component, component_id, event)\n" \
-                                 "  return a\n"
+    __INSTRUMENTATION_FUNCTIONS = "import sys, threading, datetime\n" \
+                                  "def ____instr_component(component_decl_id, component_id, event, a, s):\n" \
+                                  "  print >> sys.stderr, '%s: %s: Component %s is %s %s (id = %s) with input %s and state %s' % (datetime.datetime.now().strftime('%x %X.%f'), threading.current_thread().name, get_name(), event, component_decl_id, component_id, a, {skey : s[skey] for skey in filter(lambda k: k != '____prev_', s.keys())})\n" \
+                                  "  return a\n"\
+                                  "def ____instr_component_construction(component_decl_id, component_id, component_config, invoked_component, decl_line_no):\n" \
+                                  "  print >> sys.stderr, '%s: %s: Component %s is constructing %s (id = %s) with configuration %s (%s instance declared at line %d)' % (datetime.datetime.now().strftime('%x %X.%f'), threading.current_thread().name, get_name(), component_decl_id, component_id, component_config, invoked_component, decl_line_no)\n"
     __TEMP_VAR = "____tmp_%d"
 
     def __init__(self, filename_root, is_instrumented = False):
@@ -93,7 +94,7 @@ class ExecutorVisitor(object):
         self.__write_line(ExecutorVisitor.__HEADER % header_args)
         self.__is_instrumented = is_instrumented
         if self.__is_instrumented:
-            self.__write_line(ExecutorVisitor.__INSTRUMENTATION_FUNCTION)
+            self.__write_line(ExecutorVisitor.__INSTRUMENTATION_FUNCTIONS)
         self.__write_line()
         self.__conditional_operators = {AndConditionalExpression : 'and',
                                         OrConditionalExpression : 'or',
@@ -162,7 +163,7 @@ class ExecutorVisitor(object):
             elif isinstance(terminal, Identifier):
                 return "a['%s']" % terminal
             elif isinstance(terminal, Literal):
-                return str(terminal)
+                return str(terminal).__repr__()
             else:
                 raise ValueError("Unexpected terminal in conditional: filename = %s, line no = %d" % \
                                  (terminal.filename, terminal.lineno))
@@ -221,19 +222,22 @@ class ExecutorVisitor(object):
                                                          for i in self._module.resolution_symbols['configuration']]),
                               ["args"])
 
+        # Component configuration
+        component_configuration_exprs = ["%s_configuration = %s" % \
+                                         (decl.identifier,
+                                          "{%s}" % (", ".join(["'%s' : %s" % \
+                                                               (cm.to, \
+                                                                "config['%s']" % cm.from_ \
+                                                                if isinstance(cm.from_, Identifier) \
+                                                                else cm.from_.value.__repr__() \
+                                                                if isinstance(cm.from_.value, str) \
+                                                                else m.literal) \
+                                                                for cm in decl.configuration_mappings]))) \
+                                         for decl in self._module.resolution_symbols['components']]
         # The initialise function
-        component_initialisations = ["%s = ____%s.initialise(____%s.configure(%s))" % \
-                                     (decl.identifier,
-                                      decl.component_alias,
-                                      decl.component_alias,
-                                      "{%s}" % (", ".join(["'%s' : %s" % \
-                                                           (cm.to, \
-                                                            "config['%s']" % cm.from_ \
-                                                            if isinstance(cm.from_, Identifier) \
-                                                            else cm.from_.value.__repr__() \
-                                                            if isinstance(cm.from_.value, str) \
-                                                            else m.literal) \
-                                                           for cm in decl.configuration_mappings]))) \
+        component_initialisations = ["%(id)s = ____%(comp_alias)s.initialise(____%(comp_alias)s.configure(%(id)s_configuration))" % \
+                                     {'id' : decl.identifier,
+                                      'comp_alias' : decl.component_alias} \
                                      for decl in self._module.resolution_symbols['components']]
         # Guard against a module returning a non-Kleisli arrow type from initialise
         component_decl_guards = ["%(id)s = %(id)s " \
@@ -241,14 +245,6 @@ class ExecutorVisitor(object):
                                  "else cons_function_component(%(id)s)" % \
                                  {'id' : decl.identifier} \
                                  for decl in self._module.resolution_symbols['components']]
-        # Wrap with instrumentation, if required
-        if self.__is_instrumented:
-            component_instrumentation_exprs = ["%(id)s = ((cons_function_component(lambda a, s: ____instr_component(____%(comp_alias)s.get_name(), id(%(id)s), 'starting', a)) >> " \
-                                               "%(id)s) >> " \
-                                               "cons_function_component(lambda a, s: ____instr_component(____%(comp_alias)s.get_name(), id(%(id)s), 'finishing', a)))" % \
-                                               {'id' : decl.identifier,
-                                                'comp_alias' : decl.component_alias} \
-                                               for decl in self._module.resolution_symbols['components']]
         # Wrap this component with any state conversion components
         state_wrappers = ["%(id)s = ((cons_function_component(lambda a, s: a, state_mutator = lambda s: {%(state)s, '____prev_' : s})) >> %(id)s) >> cons_function_component(lambda a, s: a, state_mutator = lambda s: s['____prev_'])" % \
                           {'id' : decl.identifier,
@@ -263,9 +259,37 @@ class ExecutorVisitor(object):
                           for decl in self._module.resolution_symbols['components']]
         # Do we generate instrumented code?
         if self.__is_instrumented:
-            decl_zipper = zip(component_initialisations, component_decl_guards, component_instrumentation_exprs, state_wrappers)
+            # Constructed component identifier
+            component_id_exprs = ["%(id)s_id = id(%(id)s)" % \
+                                  {'id' : decl.identifier} \
+                                  for decl in self._module.resolution_symbols['components']]
+            # Instrument component construction
+            component_init_instrumentation_exprs = ["____instr_component_construction('%(id)s', %(id)s_id, %(id)s_configuration, ____%(comp_alias)s.get_name(), %(decl_line_no)d)" % \
+                                                    {'id' : decl.identifier,
+                                                     'comp_alias' : decl.component_alias,
+                                                     'decl_line_no' : decl.lineno} \
+                                                    for decl in self._module.resolution_symbols['components']]
+            # Wrap with instrumentation
+            component_instrumentation_exprs = ["%(id)s = ((cons_function_component(lambda a, s: ____instr_component('%(id)s', %(id)s_id, 'starting', a, s)) >> " \
+                                               "%(id)s) >> " \
+                                               "cons_function_component(lambda a, s: ____instr_component('%(id)s', %(id)s_id, 'finishing', a, s)))" % \
+                                               {'id' : decl.identifier,
+                                                'comp_alias' : decl.component_alias,
+                                                'decl_line_no' : decl.lineno} \
+                                               for decl in self._module.resolution_symbols['components']]
+            # Generated code zipper
+            decl_zipper = zip(component_configuration_exprs,
+                              component_initialisations,
+                              component_decl_guards,
+                              component_id_exprs,
+                              component_init_instrumentation_exprs,
+                              component_instrumentation_exprs,
+                              state_wrappers)
         else:
-            decl_zipper = zip(component_initialisations, component_decl_guards, state_wrappers)
+            decl_zipper = zip(component_configuration_exprs,
+                              component_initialisations,
+                              component_decl_guards,
+                              state_wrappers)
         initialise_fn = [t for triple in decl_zipper for t in triple]
         # Store variables in variable table
         for decl in self._module.resolution_symbols['components']:
@@ -440,8 +464,4 @@ class ExecutorVisitor(object):
 
     @multimethod(IdentifierExpression)
     def visit(self, iden_expr):
-        pass
-
-    @multimethod(LiteralExpression)
-    def visit(self, literal_expr):
         pass

@@ -286,19 +286,3 @@ class IdentifierExpression(Expression):
 
     def __eq__(self, other):
         return self.identifier.__eq__(other.identifier)
-
-class LiteralExpression(Expression):
-    def __init__(self, filename, lineno, literal):
-        Expression.__init__(self, filename, lineno)
-        self.literal = literal
-
-    def accept(self, visitor):
-        visitor.visit(self)
-
-    def __str__(self):
-        return str(self.literal)
-
-    def __repr__(self):
-        return "<LiteralExpression:\n\tliteral = %s,\n\texpression = %s>" % \
-               (self.literal.__repr__(),
-                super(LiteralExpression, self).__repr__())

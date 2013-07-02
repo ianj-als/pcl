@@ -76,7 +76,7 @@ class PCLLexer(object):
 
     t_ASSIGN = r':='
     t_EQUALS = r'=='
-    t_NOT_EQUALS = r'!="'
+    t_NOT_EQUALS = r'!='
     t_GT = r'>'
     t_LT = r'<'
     t_G_EQUAL = r'>='
@@ -104,7 +104,7 @@ class PCLLexer(object):
         return t
 
     def t_FLOAT(self, t):
-        r'[-]?\d+\.\d+([eE][-+]\d+)?'
+        r'[-]?\d+\.\d+([eE][-+]?\d+)?'
         t.value = float(t.value)
         return t
 
