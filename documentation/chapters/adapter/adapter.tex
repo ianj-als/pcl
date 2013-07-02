@@ -1,0 +1,4 @@
+\chapter{Adapting to PCL}
+Your existing scripts and programs can be used with PCL. A simple Python file is required which contains six functions that inform PCLc about the natures of the component.
+
+Care must be taken when adapting your existing work to PCL pipelines. Threading issues and batch or on-line processing must be considered as the dynamics of your final pipeline may depend on it. Also, any state that may need to accumulate over the lifetime of a PCL component must be handled by the adapter for your programs.

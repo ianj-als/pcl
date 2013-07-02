@@ -27,7 +27,7 @@ from parser.resolver import Resolver
 from visitors.executor_visitor import ExecutorVisitor
 
 
-__VERSION = "1.1.6"
+__VERSION = "1.1.7"
 
 
 if __name__ == '__main__':
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     # Check we've got at least one command line argument
     if len(args) < 1:
-        print "ERROR: no input file"
+        print >> sys.stderr, "ERROR: no input file"
         sys.exit(2)
 
     # Add the PCL extension is one is missing
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     # PCL file name
     pcl_filename = os.path.join(os.path.dirname(args[0]), ".".join(basename_bits))
     if os.path.isfile(pcl_filename) is False:
-        print "ERROR: Cannot find file %s" % pcl_filename
+        print >> sys.stderr, "ERROR: Cannot find file %s" % pcl_filename
         sys.exit(1)
 
     # Parse...
@@ -84,10 +84,10 @@ if __name__ == '__main__':
     resolver = Resolver(os.getenv("PCL_IMPORT_PATH", "."))
     resolver.resolve(ast)
     for warning in resolver.get_warnings():
-        print warning
+        print >> sys.stderr, warning
     if resolver.has_errors():
         for error in resolver.get_errors():
-            print error
+            print >> sys.stderr, error
         sys.exit(1)
 
     # Execute.
@@ -95,8 +95,8 @@ if __name__ == '__main__':
     try:
         ast.accept(executor)
     except Exception as ex:
-        print traceback.format_exc()
-        print "ERROR: Code generation failed: %s" % ex
+        print >> sys.stderr, traceback.format_exc()
+        print >> sys.stderr, "ERROR: Code generation failed: %s" % ex
         sys.exit(1)
 
     sys.exit(0)

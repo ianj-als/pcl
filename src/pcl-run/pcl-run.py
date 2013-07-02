@@ -22,11 +22,12 @@ import os
 import re
 import sys
 
+from concurrent.futures import ThreadPoolExecutor
 from optparse import OptionParser
 from runner.runner import PCLImportError, execute_module
 
 
-__VERSION = "1.2.1"
+__VERSION = "1.3.0"
 
 
 if __name__ == '__main__':
@@ -153,10 +154,12 @@ if __name__ == '__main__':
 
         return pipeline_inputs
 
+    # The execution environment
+    executor = ThreadPoolExecutor(max_workers = options.no_workers)
     try:
-        print >> sys.stderr, execute_module(pcl_import_path,
+        print >> sys.stderr, execute_module(executor,
+                                            pcl_import_path,
                                             pcl_module,
-                                            options.no_workers,
                                             get_configuration_values,
                                             get_input_values)[1]
     except PCLImportError as ex:
@@ -165,3 +168,5 @@ if __name__ == '__main__':
     except AttributeError as ex:
         print >> sys.stderr, "ERROR: PCL module %s does not have required functions: %s" % (pcl_module, ex)
         sys.exit(1)
+    finally:
+        executor.shutdown(True)

@@ -7,7 +7,8 @@
 \includeonly{%
   chapters/introduction/introduction,
   chapters/compiler/compiler,
-  chapters/run-time/run-time
+  chapters/run-time/run-time,
+  chapters/adapter/adapter
 }
 
 
@@ -50,11 +51,11 @@
 
 
 %%% Macro definitions for Commonly used symbols
-\newcommand{\ReleaseVersion}{1.0.0}
+\newcommand{\ReleaseVersion}{1.0.0-beta}
 
 \begin{document}
 \title{\huge{Pipeline Creation Language (PCL)}\\
-\LARGE{Users' Manual}\\
+\LARGE{User Manual}\\
 \normalsize{Version: \ReleaseVersion}}
 \author{Ian Johnson}
 \date{\today}
@@ -65,6 +66,8 @@
 \onehalfspacing
 
 \begin{abstract}
+Pipeline Creation Language (PCL) is a general purpose language for creating non-recurrent software pipelines. This manual describes the syntax of PCL, how to compile it, and run it. Also, how to adapt your existing scripts or programs for use with PCL.
+
 PCL was developed as part of the MosesCore project sponsored by the European Commission's Seveth Framework Programme (Grant Number 288487) \url{http://www.statmt.org/mosescore/}. For more information on the Seventh Framework Programme please see \url{http://cordis.europa.eu/fp7/home_en.html}.
 \end{abstract}
 
@@ -72,7 +75,6 @@ PCL was developed as part of the MosesCore project sponsored by the European Com
 
 \tableofcontents
 \listoffigures
-\listoftables
 
 \cleardoublepage
 \setcounter{page}{1}
@@ -81,6 +83,7 @@ PCL was developed as part of the MosesCore project sponsored by the European Com
 \include{chapters/introduction/introduction}
 \include{chapters/compiler/compiler}
 \include{chapters/run-time/run-time}
+\include{chapters/adapter/adapter}
 
 \bibliographystyle{plain}{}
 \bibliography{pcl-manual}

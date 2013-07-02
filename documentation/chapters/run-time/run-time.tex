@@ -1,8 +1,128 @@
 \chapter{PCL Runtime}
-
-
-\subsection{Gotchas}
-PCL allows for components to be defined in hierarchical namespace. All directories that do not contain PCL files must contain \texttt{\_\_init\_\_.py} in order for the Python runtime to ``see'' these directories as Python packages. Failure to do so will yield an error in the form:
+The PCL runtime is an optional method of running a pipeline. It can be found in the \texttt{src/pcl-run} directory of the Git clone. Ensure this directory is in your platform path and issue:
 \begin{verbatim}
-ERROR: Failed to import PCL module parallel_sleep: No module named parallel_sleep
+pcl-run.py -h
 \end{verbatim}
+This yields:
+\begin{verbatim}
+Usage: pcl-run.py [options] [PCL configuration]
+
+Options:
+  -h, --help            show this help message and exit
+  -v, --version         show version and exit
+  -n NO_WORKERS, --noworkers=NO_WORKERS
+                        number of pipeline evaluation
+                        workers [default: 5]
+\end{verbatim}
+
+The command-line options are:
+\begin{itemize}
+\item \texttt{-h}, \texttt{--help}: Display the help message,
+\item \texttt{-v}, \texttt{--version}: Show the version of PCLc.
+\item \texttt{-n}, \texttt{--noworkers}: The components are executed in a thread pool. This option determines the maximum size of this thread pool. If you find that components that are expected to execute in parallel are running sequentially, then increasing the number of threads in the pool may help.
+\end{itemize}
+
+\section{Pipeline Configuration}
+The pipeline configuration file contains the static configuration used by components to construct other components, and the pipeline's inputs. The filename must be the same as the component you wish to run with a \texttt{.cfg} extension, e.g., the \texttt{parallel\_sleep} configuration file is called \texttt{parallel\_sleep.cfg}. The configuration file contains two sections \texttt{[Configuration]}, for configuration values, and \texttt{[Inputs]}, for pipeline inputs. Each section contains key value pairs, e.g., the \texttt{parallel\_sleep} configuration file looks like this:
+\begin{verbatim}
+[Configuration]
+sleep_command = /bin/sleep
+[Inputs]
+sleep_time = 5
+\end{verbatim}
+Environment variables can be used in configuration files with \texttt{\$(VAR\_NAME)}. The environment variable, if it exists, shall be substituted and used in the pipeline.
+
+\section{Running a Pipeline}
+At the end of the last chapter you compiled the \texttt{parallel\_sleep} component from the \texttt{examples} directory. To run this pipeline return to the \texttt{examples/parallel\_sleep} direcotry and run:
+\begin{verbatim}
+pcl-run.py parallel_sleep.cfg
+\end{verbatim}
+or
+\begin{verbatim}
+pcl-run.py parallel_sleep
+\end{verbatim}
+After 5 seconds the runtime should display on \texttt{stdout}:
+\begin{verbatim}
+({'complete': True}, {'complete': True})
+\end{verbatim}
+
+If, on the other hand, you have compiled this pipeline with instrumentation enabled (see Section \ref{sec:pclc-usage}) you should see something like this:
+\begin{verbatim}
+07/02/13 15:45:40.851373: MainThread: Component parallel_sleep
+is constructing bottom_sleep (id = 38338448) with
+configuration {'sleep_command': '/bin/sleep'}
+(sleep instance declared at line 27)
+07/02/13 15:45:40.851504: MainThread: Component parallel_sleep
+is constructing top_sleep (id = 38392400) with
+configuration {'sleep_command': '/bin/sleep'}
+(sleep instance declared at line 26)
+07/02/13 15:45:40.852697: Thread-2: Component parallel_sleep
+is starting top_sleep (id = 38392400) with input
+{'sleep_time': 5} and state {'sleep_command': '/bin/sleep'}
+07/02/13 15:45:40.856738: Thread-2: Component parallel_sleep
+is starting bottom_sleep (id = 38338448) with input
+{'sleep_time': 5} and state {'sleep_command': '/bin/sleep'}
+07/02/13 15:45:45.857495: Thread-1: Component parallel_sleep
+is finishing top_sleep (id = 38392400) with input
+{'complete': True} and state {'sleep_command': '/bin/sleep'}
+07/02/13 15:45:45.859939: Thread-5: Component parallel_sleep
+is finishing bottom_sleep (id = 38338448) with input
+{'complete': True} and state {'sleep_command': '/bin/sleep'}
+({'complete': True}, {'complete': True})
+\end{verbatim}
+The timestamped lines appear on \texttt{stderr}.
+
+\section{Gotchas}
+PCL allows for components to be defined in hierarchical namespace. All directories, in your PCL component heirarchical namespace, that do not contain PCL files must contain \texttt{\_\_init\_\_.py} in order for the Python runtime to ``see'' these directories as Python packages. Failure to do so will yield an error in the form:
+\begin{verbatim}
+ERROR: Failed to import PCL module parallel_sleep: No module
+named parallel_sleep
+\end{verbatim}
+
+\section{Using PCL in your own Python programs}
+If you wish to running PCL pipelines in your own programs a function exists in \texttt{src/pcl-run/runner/runner.py} called \texttt{execute\_module(executor,\ pcl\_import\_path,\ pcl\_module,\ get\_configuration\_fn,\ get\_inputs\_fn)}. This function returns a 2-tuple whose first element is the expected outputs of the pipeline, and the second element is the output of the executed pipeline.
+
+For example, the \texttt{parallel\_sleep} pipeline would output:
+\begin{verbatim}
+((['complete'], ['complete']),
+ ({'complete': True}, {'complete': True}))
+\end{verbatim}
+
+The inputs are:
+\begin{itemize}
+\item \texttt{executor}: A \texttt{concurrent.futures.ThreadPoolExecutor} object,
+\item \texttt{pcl\_import\_path}: A colon separated string of directories from which to search for PCL components,\\e.g., \texttt{com.mammon.wizz.components.pre\_processing:\\com.mammon.wizz.components.workers}.
+\item \texttt{pcl\_module}: A dot separated string representing the path to a compiled PCL module, e.g., \texttt{trail.pipelines.gonzo},
+\item \texttt{get\_configuration\_fn}: A function which shall receive an iterable which contains the expected configuration for the component. This fucntion shall return a dictionary whose keys are the expected configuration along with their values, e.g.,
+\begin{verbatim}
+def get_configuration(expected_configuration):
+  configuration = dict()
+  for config_key in expected_configurations:
+    configuration[config_key] =
+      # You need to implement this function
+      get_configuration_from_provider(config_key)
+
+   return configuration
+\end{verbatim}
+\item \texttt{get\_inputs\_fn}: A function that shall receive the input port specification for the component. A tuple indicates a two port input and shall contain two iterable collections containing the signals for both input ports, otherwise it is an iterable collection of signal names for the single output port. The function shall return a 2-tuple of dictionaries whose keys are the expected input signal names and values when the component has two input ports. Or, a dictionary whose keys represent the signals of a single input port, e.g.,
+\begin{verbatim}
+def get_inputs(expected_inputs):
+  def build_inputs_fn(inputs):
+    input_dict = dict()
+    for an_input in inputs:
+      input_dict[an_input] =
+        # You need to implement this function
+        get_input_from_provider(an_input)
+    return input_dict
+
+  if isinstance(expected_inputs, tuple):
+    inputs = list()
+    for set_inputs in expected_inputs:
+      inputs.append(build_inputs_fn(set_inputs))
+    inputs = tuple(pipeline_inputs)
+  else:
+    inputs = build_inputs_fn(expected_inputs)
+
+  return inputs
+\end{verbatim}
+\end{itemize}

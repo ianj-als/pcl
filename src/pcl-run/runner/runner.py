@@ -19,7 +19,6 @@
 #
 import sys
 
-from concurrent.futures import ThreadPoolExecutor
 from pypeline.core.arrows.kleisli_arrow import KleisliArrow
 from pypeline.helpers.parallel_helpers import eval_pipeline, cons_function_component
 
@@ -35,8 +34,8 @@ class PCLImportError(Exception):
         return "PCLImportError(cause = %s)" % self.__cause.__repr__()
 
 
-def execute_module(pcl_import_path, pcl_module, no_workers, get_configuration_fn, get_inputs_fn):
-    """Executes a PCL component in a concurrent environment. Provide a colon separated PCL import path, the fully qualified PCL module name, the number of workers in the concurrent execution environment, and getter two functions. The configuration function receives the expected configuration keys and should return a dictionary, whose keys are the expected configuration, with appropriate values. The input function received the expected inputs and should return a dictionary, whose keys are the expected inputs, with appropriate values."""
+def execute_module(executor, pcl_import_path, pcl_module, get_configuration_fn, get_inputs_fn):
+    """Executes a PCL component in a concurrent environment. Provide a the concurrent execution environment, a colon separated PCL import path, the fully qualified PCL module name, and getter two functions. The configuration function receives the expected configuration keys and should return a dictionary, whose keys are the expected configuration, with appropriate values. The input function received the expected inputs and should return a dictionary, whose keys are the expected inputs, with appropriate values."""
     # Set up Python path to import compiled PCL modules
     pcl_import_path_bits = pcl_import_path.split(":")
     for pcl_import_path_bit in pcl_import_path_bits:
@@ -46,6 +45,7 @@ def execute_module(pcl_import_path, pcl_module, no_workers, get_configuration_fn
     # Import PCL
     try:
         pcl = __import__(pcl_module, fromlist = ['get_inputs',
+                                                 'get_outputs',
                                                  'get_configuration',
                                                  'configure',
                                                  'initialise'])
@@ -74,13 +74,5 @@ def execute_module(pcl_import_path, pcl_module, no_workers, get_configuration_fn
         pipeline = cons_function_component(pipeline)
 
     return (expected_outputs,
-            execute_component(pipeline, pipeline_inputs, pipeline_configuration, no_workers))
-
-
-def execute_component(component, inputs, configuration, no_workers):
-    """Execute a pre-configured and initialised component."""
-    executor = ThreadPoolExecutor(max_workers = no_workers)
-    try:
-        return eval_pipeline(executor, component, inputs, configuration)
-    finally:
-        executor.shutdown(True)
+            eval_pipeline(executor, pipeline, pipeline_inputs, pipeline_configuration))
+    

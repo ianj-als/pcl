@@ -419,7 +419,7 @@ component parallel_sleep
 \end{figure}
 This component constructs two sleep components using a static sleep command to execute. The two sleep components are composed using the fanout operation, such that they run in parallel. Other example PCL files can be found in the \texttt{examples} directory of your Git clone.
 
-\section{Usage}
+\section{Usage}\label{sec:pclc-usage}
 Ensure you have \texttt{src/pclc/pclc.py} in your platform path. Running \texttt{pclc.py -h} yields:
 \begin{verbatim}
 Usage: pclc.py [options] [PCL file]
@@ -438,7 +438,7 @@ The command-line options are:
 \begin{itemize}
 \item \texttt{-h}, \texttt{--help}: Display the help message,
 \item \texttt{-l}, \texttt{--loglevel}: The logging level for the \texttt{pclc.log} file that is created during compilation. This file, depending on log level, shall show information about the parsing internals of PCLc,
-\item \texttt{-i}, \texttt{--instrument}: Specifying this flag shall add code to the generated component which shall log to standard error when component starts and finishes. The log messages are time stamped so can be used as a rudimentary profiling tool, and
+\item \texttt{-i}, \texttt{--instrument}: Specifying this flag shall add code to the generated component which shall log to standard error when the component's constructed and used components start and finish. The log messages are time stamped so can be used as a rudimentary profiling tool, and
 \item \texttt{-v}, \texttt{--version}: Show the version of PCLc.
 \end{itemize}
 
@@ -446,6 +446,11 @@ For example, change directory to \texttt{src/examples/parallel\_sleep} and issue
 \begin{verbatim}
 pclc.py -i parallel_sleep.pcl
 \end{verbatim}
+The \texttt{pcl} extension is not required so running the compiler with:
+\begin{verbatim}
+pclc.py -i parallel_sleep
+\end{verbatim}
+has the same effect.
 The compilation process will generate three new files:
 \begin{itemize}
 \item \texttt{parallel\_sleep.py}: The object code from the compilation. PCL compiles to Python and this file shall be used by the runtime to build the final pipeline,
