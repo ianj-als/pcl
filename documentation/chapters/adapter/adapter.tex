@@ -1,4 +1,97 @@
 \chapter{Adapting to PCL}
-Your existing scripts and programs can be used with PCL. A simple Python file is required which contains six functions that inform PCLc about the natures of the component.
+Today PCL gives you a convenient way of composing pre-existing PCL component together in order to build packages of computation. To build PCL components from your existing programs a Python file is required which wraps your code. The Python contains six functions that inform PCLc about the nature of the component defined:
+\begin{itemize}
+\item Component's name,
+\item Input and output port specifications,
+\item Configuration and pre-processing configuration, and
+\item The component's computation.
+\end{itemize}
 
-Care must be taken when adapting your existing work to PCL pipelines. Threading issues and batch or on-line processing must be considered as the dynamics of your final pipeline may depend on it. Also, any state that may need to accumulate over the lifetime of a PCL component must be handled by the adapter for your programs.
+Care must be taken when adapting your existing work to PCL pipelines. Threading issues and batch or on-line processing must be considered as the dynamics of your final pipeline may depend on it. Also, any state that may need to accumulate over the lifetime of a PCL component must be handled by the adaptor for your programs.
+
+\section{Python Wrapper}
+The Python wrappers for your programs can inhabit the same hierarchical package structure as your PCL hierarchy. This is because the PCL hierarchy mirrors the Python one\footnote{This is the reason why \texttt{\_\_init\_\_.py} files must be manually placed in directories in your PCL heirarchy which have no PCL files.}.
+
+Six functions are required in your Python wrapper, they are:
+\begin{itemize}
+\item \texttt{get\_name()}: Returns an object representing the name of the component. The \texttt{\_\_str\_\_()} function should be implemented to return a meaninful name. E.g.,
+\begin{verbatim}
+def get_name():
+  return 'tokenisation'
+\end{verbatim}
+\item \texttt{get\_inputs()}: Returns the inputs of the component. For components with one input port a list of input names must be returned. Otherwise, a 2-tuple must be returned whose elements are lists of input names for a two port input. E.g.,
+\begin{verbatim}
+def get_inputs():
+  return (['port.one.a', 'port.one.b'],
+          ['port.two.a', 'port.two.b', 'port.two.c'])
+\end{verbatim}
+\item \texttt{get\_outputs()} - Returns the outputs of the component. For components with one output port a list of output names must be returned. Otherwise, a 2-tuple must be returned whose elements are lists of output names for a two port output. E.g.,
+\begin{verbatim}
+def get_outputs():
+  return ['port.a', 'port.b', 'port.c']
+\end{verbatim}
+\item \texttt{get\_configuration()}: Returns a list of names that represent the static data that shall be used to construct the component. E.g.,
+\begin{verbatim}
+def get_configuration():
+  return ['buffer.file', 'buffer.size']
+\end{verbatim}
+\item \texttt{configure(args)}: This function is the component designer's chance to preprocess configuration injected at runtime. The args parameter is a dictionary that contains all the configuration provided to the pipeline. This function is to filter out, and optionally preprocess, the configuration used by this component. This function shall return a dictionary of configuration necessary to construct this component. E.g.,
+\begin{verbatim}
+import os
+def configure(args):
+  buffer_file = os.path.abspath(args['buffer.file'])
+  return {'buffer.dir' : os.path.dirname(buffer_file),
+          'buffer.file' : os.path.basename(buffer_file),
+          'buffer.size' : args['buffer.size']}
+\end{verbatim}
+\item \texttt{initialise(config)}: This function is where the component designer defines the component's computation. The function receives the dictionary returned from the \texttt{configure()} function and must return a function that takes two parameters, an input object, and a state object. The input object is a dictionary that is received from the previous component in the pipeline, and the state object is the configuration for the component. The returned function should be used to define the component's computation. E.g.,
+\begin{verbatim}
+import subprocess
+def initialise(config):
+  def sleep_function(a, s):
+    proc = subprocess.Popen([config['sleep_command'],
+                             str(a['sleep_time'])])
+    proc.communicate()
+    return {'complete' : True}
+
+  return sleep_function
+\end{verbatim}
+The function returned by \texttt{initialise()} is executed in the thread pool used by the runtime (see Chapter \ref{chap:runtime}). It is implementation defined as to whether this function blocks, waiting for a computation to complete, or not.
+\end{itemize}
+
+An example of a complete Python wrapper file is shown in Figure \ref{fig:python-wrapper}.
+\begin{figure}[h!]
+\begin{verbatim}
+import subprocess
+
+def get_name():
+  return "sleep"
+
+def get_inputs():
+  return ['sleep_time']
+
+def get_outputs():
+  return ['complete']
+
+def get_configuration():
+  return ['sleep_command']
+
+def configure(args):
+  return {'sleep_command' : args['sleep_command']}
+
+def initialise(config):
+  def sleep_function(a, s):
+    proc = subprocess.Popen([config['sleep_command'],
+                             str(a['sleep_time'])])
+    proc.communicate()
+    return {'complete' : True}
+
+  return sleep_function
+\end{verbatim}
+\caption{\texttt{sleep.py}: An example Python wrapper for PCL.}
+\label{fig:python-wrapper}
+\end{figure}
+This wrapper if used in the \texttt{parallel\_sleep} example PCL which can be found in \texttt{examples/parallel\_sleep} directory of your Git clone.
+
+\section{Future Work}
+It is envisaged that the PCL syntax will be extended in order that these ``bottom level'' PCL components can be defined in PCL. This will no longer require that these components be defined in Python wrappers. However, this is for v2!
