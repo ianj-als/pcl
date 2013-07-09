@@ -11,3 +11,7 @@ Dependencies
 ------------
 
 The PCL compiler depends on [PLY](http://www.dabeaz.com/ply/) v3.4 which is a lexing and parsing library. You can install this either by downloading the [PLY-3.4](http://www.dabeaz.com/ply/ply-3.4.tar.gz) tarball and follow the instructions. Or, run `sudo easy_install ply`.
+
+The PCL compiler and runtime relies on the Pypeline submodule found in the `libs` directory. Initialise the submodule with `git submodule update --init` and either:
+   * Set your `PYTHONPATH` environment variable to `<clone root dir>/pcl/libs/pypeline/src/pypeline`, or
+   * Install Pypeline using the instuctions in the submodule.
