@@ -14,4 +14,4 @@ The PCL compiler depends on [PLY](http://www.dabeaz.com/ply/) v3.4 which is a le
 
 The PCL compiler and runtime relies on the Pypeline submodule found in the `libs` directory. Initialise the submodule with `git submodule update --init` and either:
    * Set your `PYTHONPATH` environment variable to `<clone root dir>/pcl/libs/pypeline/src/pypeline`, or
-   * Install Pypeline using the instuctions in the submodule.
+   * Install Pypeline using the instructions in the submodule.
