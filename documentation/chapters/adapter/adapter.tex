@@ -19,23 +19,22 @@ Six functions are required in your Python wrapper, they are:
 def get_name():
   return 'tokenisation'
 \end{verbatim}
-\item \texttt{get\_inputs()}: Returns the inputs of the component. For components with one input port a list of input names must be returned. Otherwise, a 2-tuple must be returned whose elements are lists of input names for a two port input. E.g.,
+\item \texttt{get\_inputs()}: Returns the inputs of the component. Components should only be defined with one input port, which is defined by returning a single list of input port signal names. E.g.,
 \begin{verbatim}
 def get_inputs():
-  return (['port.one.a', 'port.one.b'],
-          ['port.two.a', 'port.two.b', 'port.two.c'])
+  return ['port.in.a', 'port.in.b']
 \end{verbatim}
-\item \texttt{get\_outputs()} - Returns the outputs of the component. For components with one output port a list of output names must be returned. Otherwise, a 2-tuple must be returned whose elements are lists of output names for a two port output. E.g.,
+\item \texttt{get\_outputs()} - Returns the outputs of the component. Components should only be defined with one output port, which is defined by returning a single list of output port signal names. E.g.,
 \begin{verbatim}
 def get_outputs():
-  return ['port.a', 'port.b', 'port.c']
+  return ['port.out.a', 'port.out.b', 'port.out.c']
 \end{verbatim}
 \item \texttt{get\_configuration()}: Returns a list of names that represent the static data that shall be used to construct the component. E.g.,
 \begin{verbatim}
 def get_configuration():
   return ['buffer.file', 'buffer.size']
 \end{verbatim}
-\item \texttt{configure(args)}: This function is the component designer's chance to preprocess configuration injected at runtime. The args parameter is a dictionary that contains all the configuration provided to the pipeline. This function is to filter out, and optionally preprocess, the configuration used by this component. This function shall return a dictionary of configuration necessary to construct this component. E.g.,
+\item \texttt{configure(args)}: This function is the component designer's chance to preprocess configuration injected at runtime. The \texttt{args} parameter is a dictionary that contains all the configuration provided to the entire pipeline. This function is to filter out, and optionally preprocess, the configuration used by this component. This function shall return an object containing configuration necessary to construct this component. E.g. this example returns a dictionary of configuration,
 \begin{verbatim}
 import os
 def configure(args):
@@ -44,7 +43,7 @@ def configure(args):
           'buffer.file' : os.path.basename(buffer_file),
           'buffer.size' : args['buffer.size']}
 \end{verbatim}
-\item \texttt{initialise(config)}: This function is where the component designer defines the component's computation. The function receives the dictionary returned from the \texttt{configure()} function and must return a function that takes two parameters, an input object, and a state object. The input object is a dictionary that is received from the previous component in the pipeline, and the state object is the configuration for the component. The returned function should be used to define the component's computation. E.g.,
+\item \texttt{initialise(config)}: This function is where the component designer defines the component's computation. The function receives the object returned from the \texttt{configure()} function and must return a function that takes two parameters, an input object, and a state object. The input object, \texttt{a} in the example below, is a dictionary that is received from the previous component in the pipeline. The keys of this dictionary are the signal names from the previous component's output port. The state object, \texttt{s} in the example below, is a dictionary containing the configuration for the component. The keys of the configuration dictionary are defined by the \texttt{get\_configuration()} function. The returned function should be used to define the component's computation. E.g.,
 \begin{verbatim}
 import subprocess
 def initialise(config):

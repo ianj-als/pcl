@@ -330,7 +330,7 @@ If the condition expression is evaluated to a truthy value the \emph{then} compo
   \caption{\texttt{condition\_expression} : If component's condition expression.}
   \label{fig:pcl-cond-expr}
 \end{figure}
-In Figure \ref{fig:pcl-cond-expr} the recursive syntax for the condition expression is shown. A condition expression is built up using the logical operators (\texttt{or}, \texttt{and}, and \texttt{xor})\footnote{Hopefully these operators require no explanation.}, and the relational operators (\texttt{==}, \texttt{!=}, \texttt{>}, \texttt{<}, \texttt{>=}, \texttt{<=})\footnote{And these! ;)}. The \texttt{identifier} and \texttt{qualified\_identifier} refer to the signals in the input ports of the \emph{then} and \emph{else} components. Also, configuration identifiers may be used in a condition expression, the grammar of which is shown in Figure \ref{fig:pcl-config-id}.
+In Figure \ref{fig:pcl-cond-expr} the recursive syntax for the condition expression is shown. A condition expression is built up using the logical operators (\texttt{or}, \texttt{and}, and \texttt{xor})\footnote{Hopefully these operators require no explanation.}, and the relational operators (\texttt{==}, \texttt{!=}, \texttt{>}, \texttt{<}, \texttt{>=}, and \texttt{<=})\footnote{And these! ;)}. The \texttt{identifier} and \texttt{qualified\_identifier} refer to the signals in the input ports of the \emph{then} and \emph{else} components. Also, configuration identifiers may be used in a condition expression, the grammar of which is shown in Figure \ref{fig:pcl-config-id}.
 \begin{figure}[h!]
   \centering
     \includegraphics[scale=\DiagramScale]{chapters/compiler/diagrams/configuration_identifier}
