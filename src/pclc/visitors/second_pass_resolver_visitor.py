@@ -104,7 +104,8 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
     def visit(self, second_expr):
         # Derive the top inputs
         inputs = self.__derive_inputs(second_expr)
-        top_inputs = inputs >= (lambda ins: Just(set(ins[0])) if isinstance(ins, tuple) else Just(set(ins)))
+        top_inputs = inputs >= (lambda ins: Just(frozenset(ins[0])) if isinstance(ins, tuple) \
+                                else Just(frozenset(ins)))
 
         bottom_inputs = second_expr.expression.resolution_symbols['inputs']
         bottom_outputs = second_expr.expression.resolution_symbols['outputs']

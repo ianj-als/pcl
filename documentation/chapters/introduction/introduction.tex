@@ -1,5 +1,5 @@
 \chapter{Introduction}
-Pipeline Creation Language (PCL) is a general purpose language for creating non-recurrent software pipelines. PCL is a small grammar for combining computation using re-usable components which can be shared or distributed. A number of combinator operators are defined which execute components sequentially or in parallel. Also, a number of pre-defined components can be used to ``glue'' components together, merge parallel outputs, or conditional execute components.
+Pipeline Creation Language (PCL) is a general purpose language for creating non-recurrent software pipelines. PCL is a small grammar for combining computation using re-usable components which can be shared or distributed. A number of combinator operators are defined which execute components sequentially or in parallel. Also, a number of pre-defined components can be used to ``glue'' components together, merge parallel outputs, or conditionally execute components.
 
 PCL was developed as part of the MosesCore project sponsored by the European Commission's Seventh Framework Programme (Grant Number 288487) \url{http://www.statmt.org/mosescore/}. For more information on the Seventh Framework Programme please see \url{http://cordis.europa.eu/fp7/home_en.html}.
 
@@ -7,4 +7,31 @@ PCL was developed as part of the MosesCore project sponsored by the European Com
 PCL compiler and runtime has been released under a LGPL v3.0\footnote{See the GNU Lesser General Public License at \url{http://www.gnu.org/copyleft/lesser.html}} license. It is available from GitHub using the following command:
 \begin{verbatim}
 git clone https://github.com/ianj-als/pcl.git
+\end{verbatim}
+
+\section{Dependencies}
+Today the PCL compiler and runtime scripts require two dependencies that should be installed manually. The first dependency is PLY: a parser library. PCL requires version 3.4 of PLY which can be found at \url{http://www.dabeaz.com/ply/ply-3.4.tar.gz}. Follow the instructions on how to build and install PLY v3.4. Addtionally, if you have Pyhton's \texttt{easy\_install} you can issue the command:
+\begin{center}
+\texttt{sudo easy\_install ply}
+\end{center}
+
+The second dependency is Pypeline, the Python pipelining library that underpins PCL. Pypeline is a submodule of your PCL git clone. If you haven't already initialised the submodule, use the following command now to do so:
+\begin{center}
+\texttt{git submodule update --init}
+\end{center}
+Pypeline can be installed using the instructions in the \texttt{README.md} in the directory \texttt{libs/pypeline}, or by setting your \texttt{PYTHONPATH} environment variable to:
+\begin{center}
+\texttt{<git clone root>/pcl/libs/pypeline/src}
+\end{center}
+
+Running the Python REPL you should now be able to import the PLY and Pypeline packages using the following Python commands:
+\begin{verbatim}
+$ python
+Python 2.7.3 (default, Apr 10 2013, 06:20:15) 
+[GCC 4.6.3] on linux2
+Type "help", "copyright", "credits" or "license" for more
+information.
+>>> import ply
+>>> import pypeline
+>>> 
 \end{verbatim}
