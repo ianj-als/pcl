@@ -74,10 +74,13 @@ class StateIdentifier(Identifier):
     def __init__(self, filename, lineno, identifier):
         Identifier.__init__(self, filename, lineno, identifier)
 
+    def __str__(self):
+        return "@%s" % super(StateIdentifier, self).__str__()
+
     def __repr__(self):
         return "<StateIdentifier: identifier = %s, entity = %s>" % \
                (self.identifier.__repr__(),
-                super(Identifier, self).__repr__())
+                super(StateIdentifier, self).__repr__())
 
 class Expression(Entity):
     def __init__(self, filename, lineno, parent_expr = None):

@@ -73,3 +73,16 @@ class LiteralMapping(Entity):
                (self.literal.__repr__(),
                 self.to.__repr__(),
                 super(LiteralMapping, self).__repr__())
+
+class ReturnMapping(Mapping):
+    def __init__(self, filename, lineno, from_, to_identifier):
+        Mapping.__init__(self, filename, lineno, from_, to_identifier)
+
+    def __str__(self):
+        return "%s <- %s" % (self.to, self.from_)
+
+    def __repr__(self):
+        return "<ReturnMapping: from = %s,\n\tto = %s\n\tentity = %s>" % \
+               (self.from_.__repr__(),
+                self.to.__repr__(),
+                super(ReturnMapping, self).__repr__())    

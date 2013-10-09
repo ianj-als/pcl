@@ -27,7 +27,8 @@ class Component(Entity):
                  outputs,
                  configuration,
                  declarations,
-                 definition):
+                 definition,
+                 is_leaf):
         Entity.__init__(self, filename, lineno)
         self.identifier = identifier
         self.inputs = inputs
@@ -35,6 +36,54 @@ class Component(Entity):
         self.configuration = configuration
         self.declarations = declarations
         self.definition = definition
+        self.is_leaf = is_leaf
+
+    @staticmethod
+    def getLeafComponent(filename,
+                         lineno,
+                         identifier,
+                         inputs,
+                         outputs,
+                         configuration,
+                         do_commands):
+        class LeafDefinition(Entity):
+            def __init__(self):
+                self.filename = filename
+                self.lineno = do_commands[0].lineno
+                self.do_commands = do_commands
+
+            def accept(self, visitor):
+                for cmd in self.do_commands:
+                    cmd.accept(visitor)
+                         
+        return Component(filename,
+                         lineno,
+                         identifier,
+                         inputs,
+                         outputs,
+                         configuration,
+                         list(),
+                         LeafDefinition(),
+                         True)
+
+    @staticmethod
+    def getNodeComponent(filename,
+                         lineno,
+                         identifier,
+                         inputs,
+                         outputs,
+                         configuration,
+                         declarations,
+                         definition):
+        return Component(filename,
+                         lineno,
+                         identifier,
+                         inputs,
+                         outputs,
+                         configuration,
+                         declarations,
+                         definition,
+                         False)
 
     def accept(self, visitor):
         visitor.visit(self)
@@ -47,7 +96,7 @@ class Component(Entity):
 
     def __repr__(self):
         return "<Component:\n\tname = %s,\n\tinputs = %s,\n\toutputs = %s," \
-               "\n\tconfiguration = %s,\n\tdeclarations = %s\n\tdefinition = %s" \
+               "\n\tconfiguration = %s,\n\tdeclarations = %s,\n\tdefinition = %s," \
                "\n\tentity = %s>" % \
                (self.identifier.__repr__(), self.inputs.__repr__(),
                 self.outputs.__repr__(), self.configuration.__repr__(),

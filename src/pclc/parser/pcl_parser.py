@@ -26,6 +26,7 @@ from pcl_lexer import tokens, PCLLexer
 from import_spec import Import
 from component import Component
 from declaration import Declaration
+from command import Command, Function, Return, IfCommand
 from conditional_expressions import AndConditionalExpression, \
      OrConditionalExpression, \
      XorConditionalExpression, \
@@ -55,7 +56,8 @@ from expressions import Literal, \
 from mappings import Mapping, \
      TopMapping, \
      BottomMapping, \
-     LiteralMapping
+     LiteralMapping, \
+     ReturnMapping
 from module import Module
 
 
@@ -95,15 +97,27 @@ def p_import_spec(p):
                   Identifier(p.parser.filename, p.lineno(4), p[4]))
 
 def p_component_definition(p):
-    '''component_definition : COMPONENT IDENTIFIER INPUTS scalar_or_tuple_identifier_comma_list OUTPUTS scalar_or_tuple_identifier_comma_list opt_configuration opt_declarations AS component_body_expression'''
-    p[0] = Component(p.parser.filename,
-                     p.lineno(1),
-                     Identifier(p.parser.filename, p.lineno(2), p[2]),
-                     p[4],
-                     p[6],
-                     p[7],
-                     p[8],
-                     p[10])
+    '''component_definition : COMPONENT IDENTIFIER INPUTS scalar_or_tuple_identifier_comma_list OUTPUTS scalar_or_tuple_identifier_comma_list opt_configuration opt_declarations AS arrow_expression
+                            | COMPONENT IDENTIFIER INPUTS scalar_or_tuple_identifier_comma_list OUTPUTS scalar_or_tuple_identifier_comma_list opt_configuration DO do_command_list'''
+    lineno = p.lineno(1)
+    identifier = Identifier(p.parser.filename, p.lineno(2), p[2])
+    if len(p) > 10:
+        p[0] = Component.getNodeComponent(p.parser.filename,
+                                          lineno,
+                                          identifier,
+                                          p[4],
+                                          p[6],
+                                          p[7],
+                                          p[8],
+                                          p[10])
+    else:
+        p[0] = Component.getLeafComponent(p.parser.filename,
+                                          lineno,
+                                          identifier,
+                                          p[4],
+                                          p[6],
+                                          p[7],
+                                          p[9])
 
 def p_opt_configuration(p):
     '''opt_configuration : CONFIGURATION identifier_comma_list
@@ -155,9 +169,13 @@ def p_mapping(p):
     '''mapping : identifier_or_literal MAPS_TO identifier_or_qual_identifier'''
     p[0] = Mapping(p.parser.filename, p[1].lineno, p[1], p[3])
 
-def p_component_body(p):
-    '''component_body_expression : arrow_expression'''
-    p[0] = p[1]
+##def p_body_expression_or_do_notation(p):
+##    '''body_expression_or_do_notation : opt_declarations AS arrow_expression
+##                                      | DO do_command_list'''
+##    if len(p) > 2:
+##        p[0] = [p[1], p[2]]
+##    else:
+##        p[0] = p[2]
 
 def p_arrow_expression(p):
     '''arrow_expression : composition_expression'''
@@ -356,6 +374,77 @@ def p_unary_conditional_expression(p):
     else:
         p[0] = TerminalConditionalExpression(p[1])
 
+def p_do_command_list(p):
+    '''do_command_list : do_command do_command_list
+                       | do_command'''
+    if len(p) > 2:
+        p[0] = [p[1]] + p[2]
+    else:
+        p[0] = [p[1]]
+
+def p_do_command(p):
+    '''do_command : identifier_or_qual_identifier LEFT_ARROW function
+                  | function
+                  | RETURN return_mappings
+                  | IF conditional_expression THEN do_command_list ELSE do_command_list ENDIF'''
+    if len(p) > 4:
+        p[0] = IfCommand(p.parser.filename, p.lineno(1), p[2], p[4], p[6])
+    elif len(p) > 3:
+        p[0] = Command(p.parser.filename, p[1].lineno, p[1], p[3])
+    elif len(p) > 2:
+        p[0] = Return(p.parser.filename, p.lineno(1), p[2])
+    else:
+        p[0] = Command(p.parser.filename, p[1].lineno, None, p[1])
+
+def p_function(p):
+    '''function : identifier_or_qual_identifier '(' opt_function_args ')' '''
+    p[0] = Function(p.parser.filename, p[1].lineno, p[1], p[3])
+
+def p_opt_function_args(p):
+    '''opt_function_args : function_arg_list
+                         | '''
+    if len(p) > 0:
+        p[0] = p[1]
+    else:
+        p[0] = list()
+
+def p_function_arg_list(p):
+    '''function_arg_list : function_arg ',' function_arg_list
+                         | function_arg'''
+    if len(p) > 2:
+        p[0] = [p[1]] + p[3]
+    else:
+        p[0] = [p[1]]
+
+def p_function_arg(p):
+    '''function_arg : identifier_or_literal
+                    | state_identifier'''
+    p[0] = p[1]
+
+def p_return_mappings(p):
+    '''return_mappings : return_mapping_list
+                       | '(' ')' '''
+    if len(p) > 1:
+        p[0] = list()
+    else:
+        p[0] = p[1]
+
+def p_return_mapping_list(p):
+    '''return_mapping_list : return_mapping ',' return_mapping_list
+                           | return_mapping'''
+    if len(p) > 2:
+        p[0] = [p[1]] + p[3]
+    else:
+        p[0] = [p[1]]
+
+def p_return_mapping(p):
+    '''return_mapping : identifier_or_qual_identifier LEFT_ARROW identifier_or_literal
+                      | identifier_or_qual_identifier LEFT_ARROW state_identifier'''
+    p[0] = ReturnMapping(p.parser.filename,
+                         p[1].lineno,
+                         p[3],
+                         p[1])
+
 def p_scalar_or_tuple_identifier_comma_list(p):
     '''scalar_or_tuple_identifier_comma_list : '(' identifier_comma_list ')' ',' '(' identifier_comma_list ')'
                                              | identifier_comma_list'''
@@ -398,7 +487,10 @@ recovery_tokens = (')',
                    'PARALLEL_WITH_TUPLE',
                    'PARALLEL_WITH_SCALAR',
                    'AS',
-                   'DECLARE')
+                   'DECLARE',
+                   'DO',
+                   'IF',
+                   'RETURN')
 
 def p_error(token):
     if not token:

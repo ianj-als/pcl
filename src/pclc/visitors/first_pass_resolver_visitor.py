@@ -122,6 +122,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
         python_module_interface = []
 
         if declarations:
+            print "\n".join(map(lambda d: str(d), declarations))
             for decl in declarations:
                 # Count occurrences of declaration identifiers
                 try:
@@ -304,6 +305,8 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
             # Mark the import as not used for now ;)
             self._module.resolution_symbols['used_imports'][an_import.alias] = (an_import, False)
+
+        print self._errors
 
     @multimethod(Component)
     def visit(self, component):

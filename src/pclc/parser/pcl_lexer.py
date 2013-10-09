@@ -33,6 +33,9 @@ reserved = {
     'component' : 'COMPONENT',
     'configuration' : 'CONFIGURATION',
     'declare' : 'DECLARE',
+    'do' : 'DO',
+    'endif' : 'ENDIF',
+    'else' : 'ELSE',
     'first' : 'FIRST',
     'import' : 'IMPORT',
     'if' : 'IF',
@@ -43,8 +46,10 @@ reserved = {
     'or' : 'OR',
     'output' : 'OUTPUTS',
     'outputs' : 'OUTPUTS',
+    'return' : 'RETURN',
     'second' : 'SECOND',
     'split' : 'SPLIT',
+    'then' : 'THEN',
     'top' : 'TOP',
     'wire' : 'WIRE',
     'with' : 'WITH',
@@ -58,6 +63,7 @@ tokens = [
     'EQUALS',
     'NOT_EQUALS',
     'GT', 'LT', 'G_EQUAL', 'L_EQUAL',
+    'LEFT_ARROW',
     'QUALIFIED_IDENTIFIER', 'IDENTIFIER',
     'COMPOSITION',
     'FLOAT',
@@ -81,6 +87,7 @@ class PCLLexer(object):
     t_LT = r'<'
     t_G_EQUAL = r'>='
     t_L_EQUAL = r'<='
+    t_LEFT_ARROW = r'<-'
     t_COMPOSITION = r'>>>'
     t_MAPS_TO = r'->'
     t_PARALLEL_WITH_TUPLE = r'\*\*\*'
