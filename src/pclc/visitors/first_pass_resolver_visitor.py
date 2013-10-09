@@ -306,8 +306,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
             # Mark the import as not used for now ;)
             self._module.resolution_symbols['used_imports'][an_import.alias] = (an_import, False)
 
-        print self._errors
-
     @multimethod(Component)
     def visit(self, component):
         # Component name *must* be the same as the file name

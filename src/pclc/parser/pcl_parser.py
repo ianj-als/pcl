@@ -169,14 +169,6 @@ def p_mapping(p):
     '''mapping : identifier_or_literal MAPS_TO identifier_or_qual_identifier'''
     p[0] = Mapping(p.parser.filename, p[1].lineno, p[1], p[3])
 
-##def p_body_expression_or_do_notation(p):
-##    '''body_expression_or_do_notation : opt_declarations AS arrow_expression
-##                                      | DO do_command_list'''
-##    if len(p) > 2:
-##        p[0] = [p[1], p[2]]
-##    else:
-##        p[0] = p[2]
-
 def p_arrow_expression(p):
     '''arrow_expression : composition_expression'''
     p[0] = p[1]
