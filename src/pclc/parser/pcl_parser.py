@@ -389,8 +389,8 @@ def p_do_command(p):
         p[0] = Command(p.parser.filename, p[1].lineno, None, p[1])
 
 def p_function(p):
-    '''function : identifier_or_qual_identifier '(' opt_function_args ')' '''
-    p[0] = Function(p.parser.filename, p[1].lineno, p[1], p[3])
+    '''function : QUALIFIED_IDENTIFIER '(' opt_function_args ')' '''
+    p[0] = Function(p.parser.filename, p.lineno(1), p[1], p[3])
 
 def p_opt_function_args(p):
     '''opt_function_args : function_arg_list

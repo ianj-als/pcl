@@ -52,9 +52,9 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
         # Root expression, so get inputs and outpus
         # from module defined inputs and outputs clauses
         expr = self._module.definition.definition
+        # Place the input/output specifications in a Maybe monad
         expected_fn = lambda e: Just((frozenset(e[0]), frozenset(e[1]))) \
                       if isinstance(e, tuple) else Just(frozenset(e))
-
         self._module.resolution_symbols['inputs'] = expected_fn(self._module.definition.inputs) >= \
                                                     (lambda expected_inputs: expr.resolution_symbols['inputs'] >= \
                                                      (lambda actual_inputs: self._add_errors("ERROR: %(filename)s at line %(lineno)d, component " \

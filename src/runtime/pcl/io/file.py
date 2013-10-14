@@ -17,44 +17,9 @@
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# cons :: []
-cons = lambda : list()
 
-# concat :: [*] -> [*] -> [*]
-concat = lambda l, m: l + m
+# openForRead :: String -> file
+openFile = lambda fn, flags: open(fn, flags)
 
-# append :: [a] -> a -> a
-append = lambda l, x: l.append(x) or x
-
-# length :: [*] -> Int
-length = lambda l: len(l)
-
-# insert :: [a] -> Int -> a
-insert = lambda l, i, x: l.insert(i, x) or x
-
-# head :: [a] -> a
-head = lambda l: l[0]
-
-# tail :: [a] -> [a]
-tail = lambda l: l[1:]
-
-# last :: [a] -> a
-last = lambda l: l[-1]
-
-# init :: [a] -> [a]
-init = lambda l: l[0:-1]
-
-# reverse :: [a] -> [a]
-reverse = lambda l: l[::-1]
-
-# take :: [a] -> Int -> [a]
-take = lambda l, t: l[:t]
-
-# drop :: [a] -> Int -> [a]
-drop = lambda l, d: l[d:]
-
-# elem :: [a] -> a -> Boolean
-elem = lambda l, e: e in l
-
-# index :: [a] -> Int -> a
-index = lambda l, i: l[i]
+# closeFile :: file -> ()
+closeFile = lambda f: f.close()

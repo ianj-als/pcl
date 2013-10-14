@@ -18,11 +18,14 @@
 #
 import collections
 import glob
+import inspect
 import os
 import sys
+import types
 
 from multimethod import multimethod, multimethodclass
 from parser.import_spec import Import
+from parser.command import Function, Command, Return, IfCommand
 from parser.component import Component
 from parser.conditional_expressions import AndConditionalExpression, \
      OrConditionalExpression, \
@@ -202,12 +205,18 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                'used_components' : dict(),
                                                'used_imports' : dict(),
                                                'configuration' : dict(),
-                                               'unused_configuration' : list()}
+                                               'unused_configuration' : list(),
+                                               'command_table' : list(),
+                                               'assignment_table' : dict()}
+        if not self.__dict__.has_key("__resolve_import"):
+            self.__resolve_import = self.__resolve_runtime_import if self._module.definition.is_leaf \
+                                    else self.__resolve_pcl_import
 
     @multimethod(Import)
     def visit(self, an_import):
         # Hu rah, we're about to import something. Very exciting
         import_symbol_dict = an_import.module.resolution_symbols['imports']
+
         # Add, only uniquely aliased, Python modules to symbol table
         if import_symbol_dict.has_key(an_import.alias):
             self._add_errors("ERROR: %(filename)s at line %(lineno)d, duplicate import alias found %(alias)s",
@@ -216,95 +225,124 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                         'lineno' : i.lineno,
                                         'alias' : i.alias})
         else:
-            # Import the Python module
-            module_spec = {'module_name_id' : an_import.module_name}
-            imported_module = None
-            try:
-                imported_module = __import__(str(an_import.module_name),
-                                             fromlist = ['get_inputs',
-                                                         'get_outputs',
-                                                         'get_configuration',
-                                                         'configure',
-                                                         'initialise'])
-            except Exception as ie:
-                self._add_errors("ERROR: %(filename)s at line %(lineno)d, error importing " \
-                                 "module %(module_name)s: %(exception)s",
-                                 [an_import],
-                                 lambda i: {'filename' : i.filename,
-                                            'lineno' : i.lineno,
-                                            'module_name' : i.module_name,
-                                            'exception' : str(ie)})
-
-            # Default, or dummy, functions
-            get_inputs_fn = lambda : []
-            get_outputs_fn = lambda : []
-            get_configuration_fn = lambda : []
-
-            # Was the module imported?
-            if imported_module:
-                # Yes!
-                try:
-                    get_inputs_fn = getattr(imported_module, 'get_inputs')
-                except AttributeError:
-                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
-                                     "does not define get_inputs function",
-                                     [an_import],
-                                     lambda i: {'filename' : i.filename,
-                                                'lineno' : i.lineno,
-                                                'module' : i.module_name})
-                try:
-                    get_outputs_fn = getattr(imported_module, 'get_outputs')
-                except AttributeError:
-                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
-                                     "does not define get_outputs function",
-                                     [an_import],
-                                     lambda i: {'filename' : i.filename,
-                                                'lineno' : i.lineno,
-                                                'module' : i.module_name})
-                try:
-                    get_configuration_fn = getattr(imported_module, 'get_configuration')
-                except AttributeError:
-                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
-                                     "does not define get_configuration function",
-                                     [an_import],
-                                     lambda i: {'filename' : i.filename,
-                                                'lineno' : i.lineno,
-                                                'module' : i.module_name})
-                try:
-                    configure_fn = getattr(imported_module, 'configure')
-                except AttributeError:
-                    self._errors.append("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
-                                        "does not define configure function",
-                                        [an_import],
-                                        lambda i: {'filename' : i.filename,
-                                                'lineno' : i.lineno,
-                                                'module' : i.module_name})
-                try:
-                    initialise_fn = getattr(imported_module, 'initialise')
-                except AttributeError:
-                    self._errors.append("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
-                                        "does not define initialise function",
-                                        [an_import],
-                                        lambda i: {'filename' : i.filename,
-                                                'lineno' : i.lineno,
-                                                'module' : i.module_name})
-
-                # Record stuff from the imported Python module
-                module_spec.update({'module' : imported_module,
-                                    'get_inputs_fn' : get_inputs_fn,
-                                    'get_outputs_fn' : get_outputs_fn,
-                                    'get_configuration_fn' : get_configuration_fn})
-            else:
-                # Record a dummy module
-                module_spec.update({'get_inputs_fn' : get_inputs_fn,
-                                    'get_outputs_fn' : get_outputs_fn,
-                                    'get_configuration_fn' : get_configuration_fn})
+            # Resolve the import
+            module_spec = self.__resolve_import(an_import)
 
             # Always add the module alias as a key to the import dictionary
             import_symbol_dict[an_import.alias] = module_spec
 
             # Mark the import as not used for now ;)
             self._module.resolution_symbols['used_imports'][an_import.alias] = (an_import, False)
+
+    def __resolve_runtime_import(self, an_import):
+        imported_module = None
+        try:
+            imported_module = __import__(str(an_import.module_name), globals(), locals(), ['*'], -1)
+        except Exception as ie:
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, error importing " \
+                             "module %(module_name)s: %(exception)s",
+                             [an_import],
+                             lambda i: {'filename' : i.filename,
+                                        'lineno' : i.lineno,
+                                        'module_name' : i.module_name,
+                                        'exception' : str(ie)})
+
+        module_spec = {}
+        if imported_module:
+            funcs_and_specs = [(o[0], inspect.getargspec(o[1])) \
+                               for o in inspect.getmembers(imported_module) \
+                               if inspect.isfunction(o[1])]
+            for k, v in funcs_and_specs:
+                module_spec[k] = v
+
+        return module_spec
+
+    def __resolve_pcl_import(self, an_import):
+        # Import the Python module
+        module_spec = {'module_name_id' : an_import.module_name}
+        imported_module = None
+        try:
+            imported_module = __import__(str(an_import.module_name),
+                                         fromlist = ['get_inputs',
+                                                     'get_outputs',
+                                                     'get_configuration',
+                                                     'configure',
+                                                     'initialise'])
+        except Exception as ie:
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, error importing " \
+                             "module %(module_name)s: %(exception)s",
+                             [an_import],
+                             lambda i: {'filename' : i.filename,
+                                        'lineno' : i.lineno,
+                                        'module_name' : i.module_name,
+                                        'exception' : str(ie)})
+
+        # Default, or dummy, functions
+        get_inputs_fn = lambda : []
+        get_outputs_fn = lambda : []
+        get_configuration_fn = lambda : []
+
+        # Was the module imported?
+        if imported_module:
+            # Yes!
+            try:
+                get_inputs_fn = getattr(imported_module, 'get_inputs')
+            except AttributeError:
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
+                                 "does not define get_inputs function",
+                                 [an_import],
+                                 lambda i: {'filename' : i.filename,
+                                            'lineno' : i.lineno,
+                                            'module' : i.module_name})
+            try:
+                get_outputs_fn = getattr(imported_module, 'get_outputs')
+            except AttributeError:
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
+                                 "does not define get_outputs function",
+                                 [an_import],
+                                 lambda i: {'filename' : i.filename,
+                                            'lineno' : i.lineno,
+                                            'module' : i.module_name})
+            try:
+                get_configuration_fn = getattr(imported_module, 'get_configuration')
+            except AttributeError:
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
+                                 "does not define get_configuration function",
+                                 [an_import],
+                                 lambda i: {'filename' : i.filename,
+                                            'lineno' : i.lineno,
+                                            'module' : i.module_name})
+            try:
+                configure_fn = getattr(imported_module, 'configure')
+            except AttributeError:
+                self._errors.append("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
+                                    "does not define configure function",
+                                    [an_import],
+                                    lambda i: {'filename' : i.filename,
+                                               'lineno' : i.lineno,
+                                               'module' : i.module_name})
+            try:
+                initialise_fn = getattr(imported_module, 'initialise')
+            except AttributeError:
+                self._errors.append("ERROR: %(filename)s at line %(lineno)d, imported Python module %(module)s " \
+                                    "does not define initialise function",
+                                    [an_import],
+                                    lambda i: {'filename' : i.filename,
+                                               'lineno' : i.lineno,
+                                               'module' : i.module_name})
+
+            # Record stuff from the imported Python module
+            module_spec.update({'module' : imported_module,
+                                'get_inputs_fn' : get_inputs_fn,
+                                'get_outputs_fn' : get_outputs_fn,
+                                'get_configuration_fn' : get_configuration_fn})
+        else:
+            # Record a dummy module
+            module_spec.update({'get_inputs_fn' : get_inputs_fn,
+                                'get_outputs_fn' : get_outputs_fn,
+                                'get_configuration_fn' : get_configuration_fn})
+
+        return module_spec
 
     @multimethod(Component)
     def visit(self, component):
@@ -742,3 +780,131 @@ class FirstPassResolverVisitor(ResolverVisitor):
         iden_expr.resolution_symbols['inputs'] = transform_fn(inputs)
         iden_expr.resolution_symbols['outputs'] = transform_fn(outputs)
 
+    @multimethod(Function)
+    def visit(self, function):
+        package_alias, name = function.name.split(".")
+
+        import_symbol_dict = self._module.resolution_symbols['imports']
+        if not import_symbol_dict.has_key(package_alias):
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function package alias %(alias)s",
+                             [function],
+                             lambda f: {'filename' : f.filename,
+                                        'lineno' : f.lineno,
+                                        'alias' : package_alias})
+        else:
+            functions = import_symbol_dict[package_alias]
+            if not functions.has_key(name):
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function %(alias)s.%(name)s",
+                                 [function],
+                                 lambda f: {'filename' : f.filename,
+                                            'lineno' : f.lineno,
+                                            'alias' : package_alias,
+                                            'name' : name})
+            else:
+                # The argument spec from the imported module
+                function_arg_spec = functions[name]
+
+                if len(function_arg_spec.args) != len(function.arguments):
+                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, function %(name)s called with " \
+                                     "%(given)d arguments, expected %(required)d",
+                                     [function],
+                                     lambda f: {'filename' : f.filename,
+                                                'lineno' : f.lineno,
+                                                'name' : f.name,
+                                                'given' : len(f.arguments),
+                                                'required' : len(function_arg_spec.args)})
+
+                # Check that the arguments are either inputs, configuration or assignment
+                for argument in function.arguments:
+                    if isinstance(argument, Identifier) and \
+                       argument not in self._module.definition.inputs and \
+                       argument not in self._module.resolution_symbols['assignment_table']:
+                        self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
+                                         [function],
+                                         lambda f: {'filename' : f.filename,
+                                                    'lineno' : f.lineno,
+                                                    'arg_name' : argument})
+                    elif isinstance(argument, StateIdentifier) and \
+                         argument not in self._module.resolution_symbols['configuration']:
+                        self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
+                                         [function],
+                                         lambda f: {'filename' : f.filename,
+                                                    'lineno' : f.lineno,
+                                                    'arg_name' : argument})
+
+                # Mark the import as used
+                self._module.resolution_symbols['used_imports'][package_alias] = (self._module.resolution_symbols['used_imports'][package_alias][0],
+                                                                                  True)
+
+    @multimethod(Command)
+    def visit(self, command):
+        # Check the assigned variable is *not* an input. Inputs are immutable.
+        if command.identifier in self._module.definition.inputs:
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, attempt to write read-only input %(input)s",
+                             [command],
+                             lambda c: {'filename' : c.filename,
+                                        'lineno' : c.lineno,
+                                        'input' : c.identifier})
+
+        # Check the assigned variable is *not* an output.
+        if command.identifier in self._module.definition.outputs:
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, attempt to write output %(output)s outside a return",
+                             [command],
+                             lambda c: {'filename' : c.filename,
+                                        'lineno' : c.lineno,
+                                        'output' : c.identifier})
+
+        # Check if assignment variable has been used already. Code generation may not
+        # generate all code to provide the previous use!
+        if command.identifier in self._module.resolution_symbols['assignment_table']:
+            self._add_warnings("WARNING: %(filename)s at line %(lineno)d, duplicate assignment variable %(var_name)s",
+                               [command],
+                               lambda c: {'filename' : c.filename,
+                                          'lineno' : c.lineno,
+                                          'var_name' : c.identifier})
+
+        # Record the assignment and the command
+        self._module.resolution_symbols['assignment_table'][command.identifier] = command
+
+    @multimethod(Return)
+    def visit(self, ret):
+        # Duplicate 'to' maps
+        duplicate_to = dict()
+        missing_froms = list()
+
+        # Check the mapping contains all the outputs and that assignments exist
+        for mapping in ret.mappings:
+            # Duplicate to?
+            if mapping.to in duplicate_to:
+                duplicate_to[mapping.to] += 1
+            else:
+                duplicate_to[mapping.to] = 1
+
+            # Does the 'from' exist?
+            if mapping.from_ not in self._module.resolution_symbols['assignment_table']:
+                missing_froms.append(mapping.from_)
+
+        # Record duplicate 'to' maps
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, duplicate output in return %(duplicate)s",
+                         [duplicate_to[key] for key in filter(lambda k: duplicate_to[k] > 1, duplicate_to.keys())],
+                         lambda t: {'filename' : t.filename,
+                                    'lineno' : t.lineno,
+                                    'duplicate' : str(t)})
+
+        # Missing 'to' maps
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, missing output in return %(missing)s",
+                         frozenset(self._module.definition.outputs) - frozenset(duplicate_to.keys()),
+                         lambda t: {'filename' : t.filename,
+                                    'lineno' : t.lineno,
+                                    'missing' : str(t)})
+
+        # Missing 'from' maps
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown variable in return %(unknown)s",
+                         missing_froms,
+                         lambda m: {'filename' : m.filename,
+                                    'lineno' : m.lineno,
+                                    'unknown' : str(m)})
+
+    @multimethod(IfCommand)
+    def visit(self, if_command):
+        pass
