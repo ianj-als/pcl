@@ -125,7 +125,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
         python_module_interface = []
 
         if declarations:
-            print "\n".join(map(lambda d: str(d), declarations))
             for decl in declarations:
                 # Count occurrences of declaration identifiers
                 try:
@@ -250,10 +249,21 @@ class FirstPassResolverVisitor(ResolverVisitor):
         module_spec = {}
         if imported_module:
             funcs_and_specs = [(o[0], inspect.getargspec(o[1])) \
-                               for o in inspect.getmembers(imported_module) \
-                               if inspect.isfunction(o[1])]
+                               for o in inspect.getmembers(imported_module, \
+                                                           lambda t: inspect.isfunction(t))]
             for k, v in funcs_and_specs:
-                module_spec[k] = v
+                if v.keywords:
+                    self._add_warnings("WARNING: %(filename)s at line %(lineno)d, " \
+                                       "dropping function %(func_name)s imported " \
+                                       "from module %(module_name)s since arguments " \
+                                       "are unsupported.",
+                                       [k],
+                                       lambda n: {'filename' : an_import.filename,
+                                                  'lineno' : an_import.lineno,
+                                                  'func_name' : k,
+                                                  'module_name' : an_import.module_name})
+                else:
+                    module_spec[k] = v
 
         return module_spec
 
@@ -782,17 +792,25 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(Function)
     def visit(self, function):
+        # Get the package alias and function name
         package_alias, name = function.name.split(".")
 
+        # The imports
         import_symbol_dict = self._module.resolution_symbols['imports']
-        if not import_symbol_dict.has_key(package_alias):
-            self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function package alias %(alias)s",
-                             [function],
-                             lambda f: {'filename' : f.filename,
-                                        'lineno' : f.lineno,
-                                        'alias' : package_alias})
-        else:
-            functions = import_symbol_dict[package_alias]
+
+        # This error is a little pointless.
+        #if not import_symbol_dict.has_key(package_alias):
+        #    self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function package alias %(alias)s",
+        #                     [function],
+        #                     lambda f: {'filename' : f.filename,
+        #                                'lineno' : f.lineno,
+        #                                'alias' : package_alias})
+
+        # The key for the imports is an Identifier, so create an Identifier
+        # from the string package alias derived from the function call.
+        alias_identifier = Identifier(None, -1, package_alias)
+        if import_symbol_dict.has_key(alias_identifier):
+            functions = import_symbol_dict[alias_identifier]
             if not functions.has_key(name):
                 self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function %(alias)s.%(name)s",
                                  [function],
@@ -803,41 +821,72 @@ class FirstPassResolverVisitor(ResolverVisitor):
             else:
                 # The argument spec from the imported module
                 function_arg_spec = functions[name]
+                no_defaults = len(function_arg_spec.defaults) if function_arg_spec.defaults else 0
+                min_no_args = len(function_arg_spec.args) - no_defaults
 
-                if len(function_arg_spec.args) != len(function.arguments):
-                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, function %(name)s called with " \
-                                     "%(given)d arguments, expected %(required)d",
+                # If there are no argument default values and no var-args, then if the
+                # the number of arguments does *not* match the function's definition
+                # then that is an error.
+                if no_defaults < 1 and not function_arg_spec.varargs:
+                    # The number of expected arguments *is* the length of the ArgSpec.args
+                    if len(function_arg_spec.args) != len(function.arguments):
+                        self._add_errors("ERROR: %(filename)s at line %(lineno)d, function %(name)s called with " \
+                                         "%(given)d arguments, expected %(required)d",
+                                         [function],
+                                         lambda f: {'filename' : f.filename,
+                                                    'lineno' : f.lineno,
+                                                    'name' : f.name,
+                                                    'given' : len(f.arguments),
+                                                    'required' : len(function_arg_spec.args)})
+                elif no_defaults > 0 or function_arg_spec.varargs:
+                    # If we have at least one default argument value or at least one var-args then
+                    # if the minimum number of arguments expected for this function is less than
+                    # the number of arguments in the function call then this is an error.
+                    if len(function.arguments) < min_no_args:
+                        self._add_errors("ERROR: %(filename)s at line %(lineno)d, function %(name)s called with " \
+                                         "%(given)d arguments, expected at least %(required)d",
+                                         [function],
+                                         lambda f: {'filename' : f.filename,
+                                                    'lineno' : f.lineno,
+                                                    'name' : f.name,
+                                                    'given' : len(f.arguments),
+                                                    'required' : min_no_args})
+
+            # Mark the import as used
+            self._module.resolution_symbols['used_imports'][alias_identifier] = (self._module.resolution_symbols['used_imports'][alias_identifier][0],
+                                                                                 True)
+
+        # Check that the arguments are either inputs, configuration or assignment
+        for argument in function.arguments:
+            if isinstance(argument, StateIdentifier):
+                if argument not in self._module.resolution_symbols['configuration']:
+                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
                                      [function],
                                      lambda f: {'filename' : f.filename,
                                                 'lineno' : f.lineno,
-                                                'name' : f.name,
-                                                'given' : len(f.arguments),
-                                                'required' : len(function_arg_spec.args)})
-
-                # Check that the arguments are either inputs, configuration or assignment
-                for argument in function.arguments:
-                    if isinstance(argument, Identifier) and \
-                       argument not in self._module.definition.inputs and \
-                       argument not in self._module.resolution_symbols['assignment_table']:
-                        self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
-                                         [function],
-                                         lambda f: {'filename' : f.filename,
-                                                    'lineno' : f.lineno,
-                                                    'arg_name' : argument})
-                    elif isinstance(argument, StateIdentifier) and \
-                         argument not in self._module.resolution_symbols['configuration']:
-                        self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
-                                         [function],
-                                         lambda f: {'filename' : f.filename,
-                                                    'lineno' : f.lineno,
-                                                    'arg_name' : argument})
-
-                # Mark the import as used
-                self._module.resolution_symbols['used_imports'][package_alias] = (self._module.resolution_symbols['used_imports'][package_alias][0],
-                                                                                  True)
+                                                'arg_name' : argument})
+                else:
+                    # Mark the configuration as used
+                    try:
+                        self._module.resolution_symbols['unused_configuration'].remove(argument)
+                    except KeyError:
+                        # We may well have removed this state identifier already
+                        pass
+            elif isinstance(argument, Identifier):
+                if argument not in self._module.definition.inputs and \
+                   argument not in self._module.resolution_symbols['assignment_table']:
+                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s TITZ",
+                                     [function],
+                                     lambda f: {'filename' : f.filename,
+                                                'lineno' : f.lineno,
+                                                'arg_name' : argument})
 
     @multimethod(Command)
     def visit(self, command):
+        # If no assignment then we don't need to do anything.
+        if not command.identifier:
+            return
+
         # Check the assigned variable is *not* an input. Inputs are immutable.
         if command.identifier in self._module.definition.inputs:
             self._add_errors("ERROR: %(filename)s at line %(lineno)d, attempt to write read-only input %(input)s",
@@ -858,16 +907,19 @@ class FirstPassResolverVisitor(ResolverVisitor):
         # generate all code to provide the previous use!
         if command.identifier in self._module.resolution_symbols['assignment_table']:
             self._add_warnings("WARNING: %(filename)s at line %(lineno)d, duplicate assignment variable %(var_name)s",
-                               [command],
+                               [command.identifier],
                                lambda c: {'filename' : c.filename,
                                           'lineno' : c.lineno,
-                                          'var_name' : c.identifier})
-
-        # Record the assignment and the command
-        self._module.resolution_symbols['assignment_table'][command.identifier] = command
+                                          'var_name' : c})
+        else:
+            # Record the assignment and the command
+            self._module.resolution_symbols['assignment_table'][command.identifier] = command
 
     @multimethod(Return)
     def visit(self, ret):
+        if not ret.mappings:
+            return
+
         # Duplicate 'to' maps
         duplicate_to = dict()
         missing_froms = list()
@@ -897,6 +949,13 @@ class FirstPassResolverVisitor(ResolverVisitor):
                          lambda t: {'filename' : t.filename,
                                     'lineno' : t.lineno,
                                     'missing' : str(t)})
+
+        # Unknown 'to' maps
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown output in return %(unknown)s",
+                         frozenset([mapping.to for mapping in ret.mappings if mapping.to not in self._module.definition.outputs]),
+                         lambda m: {'filename' : m.filename,
+                                    'lineno' : m.lineno,
+                                    'unknown' : m})
 
         # Missing 'from' maps
         self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown variable in return %(unknown)s",

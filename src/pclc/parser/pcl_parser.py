@@ -395,7 +395,7 @@ def p_function(p):
 def p_opt_function_args(p):
     '''opt_function_args : function_arg_list
                          | '''
-    if len(p) > 0:
+    if len(p) > 1:
         p[0] = p[1]
     else:
         p[0] = list()

@@ -16,8 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
-from entity import Entity
+import types
 
+from entity import Entity
 from mappings import TopMapping, BottomMapping, LiteralMapping
 from pypeline.core.types.just import Just
 
@@ -28,7 +29,7 @@ class Literal(Entity):
          self.value = value
 
     def __str__(self):
-        return str(self.value)
+        return '"' + str(self.value) + '"' if type(self.value) in types.StringTypes else str(self.value)
 
     def __repr__(self):
         return "<Literal: value = [%s], entity = %s>" % \

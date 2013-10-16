@@ -19,3 +19,6 @@
 
 # split :: String -> String -> String
 split = lambda s, ss: s.__str__().split(ss)
+
+# join :: [String] -> String -> String
+join = lambda l, s: s.join(l)

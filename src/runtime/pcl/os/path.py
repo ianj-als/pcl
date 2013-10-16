@@ -26,3 +26,6 @@ join = lambda *args: os.path.join(*args)
 
 # mkdir :: String -> ()
 mkdir = lambda p: os.mkdir(p)
+
+# basename :: String -> String
+basename = lambda s: os.path.basename(s)

@@ -49,6 +49,9 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
 
     @multimethod(object)
     def visit(self, nowt):
+        if self._module.definition.is_leaf:
+            return
+
         # Root expression, so get inputs and outpus
         # from module defined inputs and outputs clauses
         expr = self._module.definition.definition
@@ -157,11 +160,20 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
                                             'filename' : e.filename,
                                             'lineno' : e.lineno})
         elif isinstance(terminal, Identifier):
-            self._current_if_expr.resolution_symbols['inputs'] >= (lambda s: self._add_errors("ERROR: %(filename)s at line %(lineno)d, " \
-                                                                                              "identifier %(entity)s not defined in " \
-                                                                                              "if inputs",
-                                                                                              [terminal],
-                                                                                              lambda e: {'entity' : e,
-                                                                                                         'filename' : e.filename,
-                                                                                                         'lineno' : e.lineno}) \
-                                                                   if terminal not in s else None)
+            if self._module.definition.is_leaf:
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown identifier %(identifier)s",
+                                 [terminal] if terminal not in self._module.definition.inputs and \
+                                               terminal not in self._module.resolution_symbols['assignment_table'] \
+                                            else [],
+                                 lambda t: {'filename' : t.filename,
+                                            'lineno' : t.lineno,
+                                            'identifier' : t})
+            else:
+                self._current_if_expr.resolution_symbols['inputs'] >= (lambda s: self._add_errors("ERROR: %(filename)s at line %(lineno)d, " \
+                                                                                                  "identifier %(entity)s not defined in " \
+                                                                                                  "if inputs",
+                                                                                                  [terminal],
+                                                                                                  lambda e: {'entity' : e,
+                                                                                                             'filename' : e.filename,
+                                                                                                             'lineno' : e.lineno}) \
+                                                                       if terminal not in s else None)
