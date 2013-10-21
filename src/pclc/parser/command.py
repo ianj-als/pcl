@@ -93,6 +93,27 @@ class Return(Entity):
                 super(Return, self).__repr__())
 
 class IfCommand(Entity):
+    class Block(Entity):
+        def __init__(self, filename, lineno, commands):
+            Entity.__init__(self, filename, lineno)
+            self.commands = commands
+
+        def __iter__(self):
+            return self.commands.__iter__()
+
+        def accept(self, visitor):
+            visitor.visit(self)
+            for cmd in self.commands:
+                cmd.accept(visitor)
+
+    class ThenBlock(Block):
+        def __init__(self, filename, lineno, commands):
+            IfCommand.Block.__init__(self, filename, lineno, commands)
+
+    class ElseBlock(Block):
+        def __init__(self, filename, lineno, commands):
+            IfCommand.Block.__init__(self, filename, lineno, commands)
+
     def __init__(self,
                  filename,
                  lineno,
@@ -101,26 +122,26 @@ class IfCommand(Entity):
                  else_commands):
         Entity.__init__(self, filename, lineno)
         self.condition = condition
-        self.then_commands = then_commands
-        self.else_commands = else_commands
+        self.then_commands = IfCommand.ThenBlock(filename, then_commands[0].lineno, then_commands)
+        self.else_commands = IfCommand.ElseBlock(filename, else_commands[0].lineno, else_commands)
 
     def accept(self, visitor):
         self.condition.accept(visitor)
-        for then_cmd in self.then_commands:
-            then_cmd.accept(visitor)
-        for else_cmd in self.else_commands:
-            else_cmd.accept(visitor)
+        self.then_commands.accept(visitor)
+        self.else_commands.accept(visitor)
         visitor.visit(self)
 
     def __str__(self):
         f = lambda cmd: str(cmd)
         l = ['if',
              str(self.condition),
-             'else',
+             'then',
              " ".join(map(f, then_commands)),
-             " ".join(map(f, else_commands))]
+             'else',
+             " ".join(map(f, else_commands)),
+             'endif']
         return " ".join(l)
-                    
+
     def __repr__(self):
         f = lambda cmd: cmd.__repr__()
         return "<IfCommand:\n\tcondition = %s,\n\tthen_commands = %s,\n\t" \

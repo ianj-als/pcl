@@ -65,6 +65,7 @@ from parser.helpers import parse_component
 from pypeline.core.types.just import Just
 from pypeline.core.types.nothing import Nothing
 from resolver_visitor import ResolverVisitor
+from symbol_table import SymbolTable
 
 
 # Decorator to prevent resolving more than once
@@ -206,7 +207,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                'configuration' : dict(),
                                                'unused_configuration' : list(),
                                                'command_table' : list(),
-                                               'assignment_table' : dict()}
+                                               'assignment_table' : SymbolTable()}
         if not self.__dict__.has_key("__resolve_import"):
             self.__resolve_import = self.__resolve_runtime_import if self._module.definition.is_leaf \
                                     else self.__resolve_pcl_import
@@ -875,7 +876,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
             elif isinstance(argument, Identifier):
                 if argument not in self._module.definition.inputs and \
                    argument not in self._module.resolution_symbols['assignment_table']:
-                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s TITZ",
+                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
                                      [function],
                                      lambda f: {'filename' : f.filename,
                                                 'lineno' : f.lineno,
@@ -966,4 +967,13 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(IfCommand)
     def visit(self, if_command):
-        pass
+        self._module.resolution_symbols['assignment_table'].pop_inner_scope()
+
+    @multimethod(IfCommand.ThenBlock)
+    def visit(self, then_block):
+        self._module.resolution_symbols['assignment_table'].push_inner_scope()
+
+    @multimethod(IfCommand.ElseBlock)
+    def visit(self, else_block):
+        self._module.resolution_symbols['assignment_table'].pop_inner_scope()
+        self._module.resolution_symbols['assignment_table'].push_inner_scope()

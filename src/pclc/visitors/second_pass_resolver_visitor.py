@@ -142,3 +142,11 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
     @multimethod(IfCommand)
     def visit(self, if_command):
         pass
+
+    @multimethod(IfCommand.ThenBlock)
+    def visit(self, then_block):
+        pass
+
+    @multimethod(IfCommand.ElseBlock)
+    def visit(self, else_block):
+        pass
