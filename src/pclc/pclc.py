@@ -24,7 +24,7 @@ import traceback
 from optparse import OptionParser
 from parser.helpers import parse_component
 from parser.resolver import Resolver
-from visitors.executor_visitor import ExecutorVisitor
+from parser.executor import Executor
 
 
 __VERSION = "1.1.8"
@@ -91,9 +91,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Execute.
-    executor = ExecutorVisitor(basename_bits[0], options.is_instrumented)
+    executor = Executor(basename_bits[0], options.is_instrumented)
     try:
-        ast.accept(executor)
+        executor.execute(ast)
     except Exception as ex:
         print >> sys.stderr, traceback.format_exc()
         print >> sys.stderr, "ERROR: Code generation failed: %s" % ex

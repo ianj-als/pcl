@@ -383,6 +383,14 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                                                component.declarations,
                                                                                component.module.resolution_symbols['imports'])
 
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, only one input is supported",
+                         [component.inputs[0]] if isinstance(component.inputs, tuple) and component.is_leaf else [],
+                         lambda i: {'filename' : i.filename,
+                                    'lineno' : i.lineno})
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, only one output is supported",
+                         [component.output[0]] if isinstance(component.outputs, tuple) and component.is_leaf else [],
+                         lambda o: {'filename' : o.filename,
+                                    'lineno' : o.lineno})
         self._add_errors("ERROR: %(filename)s at line %(lineno)d, input " \
                          "declaration contains duplicate identifier %(entity)s",
                          duplicate_inputs,
