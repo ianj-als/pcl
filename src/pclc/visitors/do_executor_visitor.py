@@ -68,8 +68,6 @@ class IntermediateRepresentation(object):
             if self.is_then_block is True:
                 self.then_block.append(node)
             elif self.is_then_block is False:
-                print "IRIfNode.add_child: ",
-                print str(node.object.function.name) if isinstance(node.object, Command) else type(node.object)
                 self.else_block.append(node)
 
         def switch_to_else_block(self):
@@ -180,7 +178,7 @@ class IntermediateRepresentation(object):
             code.append(("%s(a, s)" % self.__lookup_function_name(if_command), ""))
         elif isinstance(node, IntermediateRepresentation.IRReturnNode):
             return_command = node.object
-            if not return_command.mappings:
+            if len(return_command.mappings) == 0:
                 code.append(("return None", ""))
                             
         return code

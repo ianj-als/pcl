@@ -416,7 +416,7 @@ def p_function_arg(p):
 def p_return_mappings(p):
     '''return_mappings : return_mapping_list
                        | '(' ')' '''
-    if len(p) > 1:
+    if len(p) > 2:
         p[0] = list()
     else:
         p[0] = p[1]
