@@ -980,8 +980,14 @@ class FirstPassResolverVisitor(ResolverVisitor):
     @multimethod(IfCommand.ThenBlock)
     def visit(self, then_block):
         self._module.resolution_symbols['assignment_table'].push_inner_scope()
+        # Add implicit return () if no return exits
+        if not isinstance(then_block[-1], Return):
+            then_block.append(Return(None, -1))
 
     @multimethod(IfCommand.ElseBlock)
     def visit(self, else_block):
         self._module.resolution_symbols['assignment_table'].pop_inner_scope()
         self._module.resolution_symbols['assignment_table'].push_inner_scope()
+        # Add implicit return () if no return exits
+        if not isinstance(else_block[-1], Return):
+            else_block.append(Return(None, -1))

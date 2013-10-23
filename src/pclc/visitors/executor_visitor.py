@@ -31,6 +31,7 @@ from parser.conditional_expressions import ConditionalExpression, \
      LessThanEqualToConditionalExpression, \
      UnaryConditionalExpression, \
      TerminalConditionalExpression
+from parser.expressions import StateIdentifier, Identifier, Literal
 
 class ExecutorVisitor(object):
     __INDENTATION = "  "
@@ -77,7 +78,8 @@ class ExecutorVisitor(object):
         if isinstance(lines, list) or \
            isinstance(lines, tuple):
             for line, indent_step in lines:
-                self._write_line(line)
+                if line is not None:
+                    self._write_line(line)
                 if indent_step == "+":
                     self._incr_indent_level()
                 elif indent_step == "-":
@@ -91,7 +93,7 @@ class ExecutorVisitor(object):
     def _decr_indent_level(self):
         self._indent_level -= 1
         if self._indent_level < 1:
-            self._reset_indent_level(self)
+            self._reset_indent_level()
 
     def _reset_indent_level(self):
         self._indent_level = 0
@@ -118,22 +120,25 @@ class ExecutorVisitor(object):
             terminal = cond_expr.terminal
             if isinstance(terminal, StateIdentifier):
                 return "s['%s']" % terminal
+            elif isinstance(terminal, Identifier) and \
+                 terminal in self._module.resolution_symbols['assignment_table']:
+                return self._lookup_var(terminal)
             elif isinstance(terminal, Identifier):
                 return "a['%s']" % terminal
             elif isinstance(terminal, Literal):
-                return str(terminal).__repr__()
+                return str(terminal)
             else:
                 raise ValueError("Unexpected terminal in conditional: filename = %s, line no = %d" % \
                                  (terminal.filename, terminal.lineno))
         elif isinstance(cond_expr, ConditionalExpression):
-            left_code = self.__generate_condition(cond_expr.left)
-            right_code = self.__generate_condition(cond_expr.right)
+            left_code = self._generate_condition(cond_expr.left)
+            right_code = self._generate_condition(cond_expr.right)
             op = self.__conditional_operators[cond_expr.__class__]
             if isinstance(cond_expr, XorConditionalExpression):
                 left_code = "bool(%s)" % left_code
                 right_code = "bool(%s)" % right_code
             return "(%s %s %s)" % (left_code, op, right_code)
-        elif isinstance(cond_expr, UnaryConditionExpress):
+        elif isinstance(cond_expr, UnaryConditionalExpression):
             return "(%s)" % self._generate_condition(cond_expr.expression)
         else:
             raise ValueError("Unexpected expression in conditional: filename = %s, line no = %d" % \

@@ -74,7 +74,7 @@ class Return(Entity):
     def __init__(self,
                  filename,
                  lineno,
-                 mappings):
+                 mappings = list()):
         Entity.__init__(self, filename, lineno)
         self.mappings = mappings
 
@@ -94,12 +94,19 @@ class Return(Entity):
 
 class IfCommand(Entity):
     class Block(Entity):
-        def __init__(self, filename, lineno, commands):
+        def __init__(self, filename, lineno, commands, if_command):
             Entity.__init__(self, filename, lineno)
             self.commands = commands
+            self.if_command = if_command
+
+        def __getitem__(self, idx):
+            return self.commands[idx]
 
         def __iter__(self):
             return self.commands.__iter__()
+
+        def append(self, cmd):
+            self.commands.append(cmd)
 
         def accept(self, visitor):
             visitor.visit(self)
@@ -107,12 +114,12 @@ class IfCommand(Entity):
                 cmd.accept(visitor)
 
     class ThenBlock(Block):
-        def __init__(self, filename, lineno, commands):
-            IfCommand.Block.__init__(self, filename, lineno, commands)
+        def __init__(self, filename, lineno, commands, if_command):
+            IfCommand.Block.__init__(self, filename, lineno, commands, if_command)
 
     class ElseBlock(Block):
-        def __init__(self, filename, lineno, commands):
-            IfCommand.Block.__init__(self, filename, lineno, commands)
+        def __init__(self, filename, lineno, commands, if_command):
+            IfCommand.Block.__init__(self, filename, lineno, commands, if_command)
 
     def __init__(self,
                  filename,
@@ -122,8 +129,8 @@ class IfCommand(Entity):
                  else_commands):
         Entity.__init__(self, filename, lineno)
         self.condition = condition
-        self.then_commands = IfCommand.ThenBlock(filename, then_commands[0].lineno, then_commands)
-        self.else_commands = IfCommand.ElseBlock(filename, else_commands[0].lineno, else_commands)
+        self.then_commands = IfCommand.ThenBlock(filename, then_commands[0].lineno, then_commands, self)
+        self.else_commands = IfCommand.ElseBlock(filename, else_commands[0].lineno, else_commands, self)
 
     def accept(self, visitor):
         self.condition.accept(visitor)
@@ -136,9 +143,9 @@ class IfCommand(Entity):
         l = ['if',
              str(self.condition),
              'then',
-             " ".join(map(f, then_commands)),
+             " ".join(map(f, self.then_commands)),
              'else',
-             " ".join(map(f, else_commands)),
+             " ".join(map(f, self.else_commands)),
              'endif']
         return " ".join(l)
 
