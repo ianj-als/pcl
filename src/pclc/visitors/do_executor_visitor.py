@@ -68,6 +68,8 @@ class IntermediateRepresentation(object):
             if self.is_then_block is True:
                 self.then_block.append(node)
             elif self.is_then_block is False:
+                print "IRIfNode.add_child: ",
+                print str(node.object.function.name) if isinstance(node.object, Command) else type(node.object)
                 self.else_block.append(node)
 
         def switch_to_else_block(self):
@@ -166,22 +168,20 @@ class IntermediateRepresentation(object):
             for then_node in node.then_block:
                 more_code = self.__generate_code(then_node, generate_function_call, executor_visitor)
                 code.extend(more_code)
-            code.append(("return %s(a, s)" % self.__lookup_function_name(if_command.then_commands[0]), "-"))
             code.append((None, "-"))
             
             code.append(("else:", "+"))
-            for else_node in node.then_block:
-                print type(else_node)
+            for else_node in node.else_block:
                 more_code = self.__generate_code(else_node, generate_function_call, executor_visitor)
                 code.extend(more_code)
             
 
             code.append((None, "-"))
             code.append(("%s(a, s)" % self.__lookup_function_name(if_command), ""))
-            
         elif isinstance(node, IntermediateRepresentation.IRReturnNode):
-            # Return command code generation
-            pass
+            return_command = node.object
+            if not return_command.mappings:
+                code.append(("return None", ""))
                             
         return code
 
