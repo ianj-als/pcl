@@ -269,9 +269,9 @@ class PCLExecutorVisitor(ExecutorVisitor):
                              m.literal.value.__repr__() if isinstance(m.literal.value, str) else m.literal) \
                             for m in merge_expr.literal_mapping]
         mapping = ", ".join(top_mappings + bottom_mappings + literal_mappings)
-        self.__write_line("%s = cons_unsplit_wire(lambda t, b: {%s})" % \
-                          (self._get_temp_var(merge_expr),
-                           mapping))
+        self._write_line("%s = cons_unsplit_wire(lambda t, b: {%s})" % \
+                         (self._get_temp_var(merge_expr),
+                          mapping))
 
     @staticmethod
     def __build_wire_expr(mapping):
@@ -288,18 +288,18 @@ class PCLExecutorVisitor(ExecutorVisitor):
 
     @multimethod(WireTupleExpression)
     def visit(self, wire_tuple_expr):
-        self.__write_line("%s = %s ** %s" % \
-                          (self._get_temp_var(wire_tuple_expr),
-                           ExecutorVisitor.__build_wire_expr(wire_tuple_expr.top_mapping),
-                           ExecutorVisitor.__build_wire_expr(wire_tuple_expr.bottom_mapping)))
+        self._write_line("%s = %s ** %s" % \
+                         (self._get_temp_var(wire_tuple_expr),
+                          ExecutorVisitor.__build_wire_expr(wire_tuple_expr.top_mapping),
+                          ExecutorVisitor.__build_wire_expr(wire_tuple_expr.bottom_mapping)))
 
     @multimethod(IfExpression)
     def visit(self, if_expr):
-        self.__write_line("%s = cons_if_component(lambda a, s: %s, %s, %s)" % \
-                          (self._get_temp_var(if_expr),
-                           self._generate_condition(if_expr.condition),
-                           self._lookup_var(if_expr.then),
-                           self._lookup_var(if_expr.else_)))
+        self._write_line("%s = cons_if_component(lambda a, s: %s, %s, %s)" % \
+                         (self._get_temp_var(if_expr),
+                          self._generate_condition(if_expr.condition),
+                          self._lookup_var(if_expr.then),
+                          self._lookup_var(if_expr.else_)))
 
     @multimethod(AndConditionalExpression)
     def visit(self, and_cond_expr):

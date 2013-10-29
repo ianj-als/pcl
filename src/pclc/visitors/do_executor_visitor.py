@@ -172,10 +172,16 @@ class IntermediateRepresentation(object):
             
 
             code.append((None, "-"))
-            code.append(("%s(a, s)" % self.__lookup_function_name(if_command), ""))
+            if if_command.identifier:
+                code.append(("%s = %s(a, s)" % (executor_visitor._get_temp_var(if_command.identifier), \
+                                                self.__lookup_function_name(if_command)), ""))
+            else:
+                code.append(("%s(a, s)" % self.__lookup_function_name(if_command), ""))
         elif isinstance(node, IntermediateRepresentation.IRReturnNode):
             return_command = node.object
-            if len(return_command.mappings) == 0:
+            if return_command.value:
+                code.append(("return %s" % executor_visitor._generate_terminal(return_command.value)))
+            elif len(return_command.mappings) == 0:
                 code.append(("return None", ""))
             else:
                 code.append(("return {%s}" % ", ".join(["'%s' : %s" % (m.to, executor_visitor._generate_terminal(m.from_)) for m in return_command.mappings]), ""))

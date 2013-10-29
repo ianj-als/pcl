@@ -890,39 +890,40 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                 'lineno' : f.lineno,
                                                 'arg_name' : argument})
 
-    @multimethod(Command)
-    def visit(self, command):
-        # If no assignment then we don't need to do anything.
-        if not command.identifier:
-            return
-
+    def __resolve_assignment(self, identifier, assign_object):
         # Check the assigned variable is *not* an input. Inputs are immutable.
-        if command.identifier in self._module.definition.inputs:
+        if identifier in self._module.definition.inputs:
             self._add_errors("ERROR: %(filename)s at line %(lineno)d, attempt to write read-only input %(input)s",
-                             [command],
-                             lambda c: {'filename' : c.filename,
-                                        'lineno' : c.lineno,
-                                        'input' : c.identifier})
+                             [assign_object],
+                             lambda o: {'filename' : o.filename,
+                                        'lineno' : o.lineno,
+                                        'input' : identifier})
 
         # Check the assigned variable is *not* an output.
-        if command.identifier in self._module.definition.outputs:
+        if identifier in self._module.definition.outputs:
             self._add_errors("ERROR: %(filename)s at line %(lineno)d, attempt to write output %(output)s outside a return",
-                             [command],
-                             lambda c: {'filename' : c.filename,
-                                        'lineno' : c.lineno,
-                                        'output' : c.identifier})
+                             [assign_object],
+                             lambda o: {'filename' : o.filename,
+                                        'lineno' : o.lineno,
+                                        'output' : identifier})
 
         # Check if assignment variable has been used already. Code generation may not
         # generate all code to provide the previous use!
-        if command.identifier in self._module.resolution_symbols['assignment_table']:
+        if identifier in self._module.resolution_symbols['assignment_table']:
             self._add_warnings("WARNING: %(filename)s at line %(lineno)d, duplicate assignment variable %(var_name)s",
-                               [command.identifier],
-                               lambda c: {'filename' : c.filename,
-                                          'lineno' : c.lineno,
-                                          'var_name' : c})
+                               [identifier],
+                               lambda i: {'filename' : i.filename,
+                                          'lineno' : i.lineno,
+                                          'var_name' : i})
         else:
             # Record the assignment and the command
-            self._module.resolution_symbols['assignment_table'][command.identifier] = command
+            self._module.resolution_symbols['assignment_table'][identifier] = assign_object
+
+    @multimethod(Command)
+    def visit(self, command):
+        # If no assignment then we don't need to do anything.
+        if command.identifier:
+            self.__resolve_assignment(command.identifier, command)
 
     @multimethod(Return)
     def visit(self, ret):
@@ -975,19 +976,15 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(IfCommand)
     def visit(self, if_command):
+        if if_command.identifier:
+            self.__resolve_assignment(if_command.identifier, if_command)
         self._module.resolution_symbols['assignment_table'].pop_inner_scope()
 
     @multimethod(IfCommand.ThenBlock)
     def visit(self, then_block):
         self._module.resolution_symbols['assignment_table'].push_inner_scope()
-        # Add implicit return () if no return exits
-        if not isinstance(then_block[-1], Return):
-            then_block.append(Return(None, -1))
 
     @multimethod(IfCommand.ElseBlock)
     def visit(self, else_block):
         self._module.resolution_symbols['assignment_table'].pop_inner_scope()
         self._module.resolution_symbols['assignment_table'].push_inner_scope()
-        # Add implicit return () if no return exits
-        if not isinstance(else_block[-1], Return):
-            else_block.append(Return(None, -1))

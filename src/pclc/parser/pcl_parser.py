@@ -98,7 +98,7 @@ def p_import_spec(p):
 
 def p_component_definition(p):
     '''component_definition : COMPONENT IDENTIFIER INPUTS scalar_or_tuple_identifier_comma_list OUTPUTS scalar_or_tuple_identifier_comma_list opt_configuration opt_declarations AS arrow_expression
-                            | COMPONENT IDENTIFIER INPUTS scalar_or_tuple_identifier_comma_list OUTPUTS scalar_or_tuple_identifier_comma_list opt_configuration DO do_command_list'''
+                            | COMPONENT IDENTIFIER INPUTS scalar_or_tuple_identifier_comma_list OUTPUTS scalar_or_tuple_identifier_comma_list opt_configuration DO do_commands'''
     lineno = p.lineno(1)
     identifier = Identifier(p.parser.filename, p.lineno(2), p[2])
     if len(p) > 10:
@@ -366,27 +366,45 @@ def p_unary_conditional_expression(p):
     else:
         p[0] = TerminalConditionalExpression(p[1])
 
+def p_do_commands(p):
+    '''do_commands : opt_do_command_list RETURN return_mapping_list'''
+    p[1].append(Return(p.parser.filename, p.lineno(2), None, p[3]))
+    p[0] = p[1]
+
+def p_opt_do_commmand_list(p):
+    '''opt_do_command_list : do_command_list
+                           | '''
+    if len(p) > 1:
+        p[0] = p[1]
+    else:
+        p[0] = list()
+
 def p_do_command_list(p):
     '''do_command_list : do_command do_command_list
                        | do_command'''
     if len(p) > 2:
-        p[0] = [p[1]] + p[2]
+        p[0] = p[1] + p[2]
     else:
-        p[0] = [p[1]]
+        p[0] = p[1]
 
 def p_do_command(p):
     '''do_command : identifier_or_qual_identifier LEFT_ARROW function
                   | function
-                  | RETURN return_mappings
-                  | IF conditional_expression THEN do_command_list ELSE do_command_list ENDIF'''
-    if len(p) > 4:
-        p[0] = IfCommand(p.parser.filename, p.lineno(1), p[2], p[4], p[6])
+                  | IF conditional_expression THEN opt_do_command_list return_command ELSE opt_do_command_list return_command ENDIF
+                  | identifier_or_qual_identifier LEFT_ARROW IF conditional_expression THEN opt_do_command_list return_command ELSE opt_do_command_list return_command ENDIF'''
+    p[0] = list()
+    if len(p) > 10:
+        p[6].append(p[7])
+        p[9].append(p[10])
+        p[0].append(IfCommand(p.parser.filename, p[1].lineno, p[1], p[4], p[6], p[9]))
+    elif len(p) > 4:
+        p[4].append(p[5])
+        p[7].append(p[8])
+        p[0].append(IfCommand(p.parser.filename, p.lineno(1), None, p[2], p[4], p[7]))
     elif len(p) > 3:
-        p[0] = Command(p.parser.filename, p[1].lineno, p[1], p[3])
-    elif len(p) > 2:
-        p[0] = Return(p.parser.filename, p.lineno(1), p[2])
+        p[0].append(Command(p.parser.filename, p[1].lineno, p[1], p[3]))
     else:
-        p[0] = Command(p.parser.filename, p[1].lineno, None, p[1])
+        p[0].append(Command(p.parser.filename, p[1].lineno, None, p[1]))
 
 def p_function(p):
     '''function : QUALIFIED_IDENTIFIER '(' opt_function_args ')' '''
@@ -413,13 +431,13 @@ def p_function_arg(p):
                     | state_identifier'''
     p[0] = p[1]
 
-def p_return_mappings(p):
-    '''return_mappings : return_mapping_list
-                       | '(' ')' '''
-    if len(p) > 2:
-        p[0] = list()
+def p_return_command(p):
+    '''return_command : RETURN '(' ')'
+                      | RETURN function_arg'''
+    if len(p) > 3:
+        p[0] = Return(p.parser.filename, -1)
     else:
-        p[0] = p[1]
+        p[0] = Return(p.parser.filename, p.lineno(1), p[2])
 
 def p_return_mapping_list(p):
     '''return_mapping_list : return_mapping ',' return_mapping_list

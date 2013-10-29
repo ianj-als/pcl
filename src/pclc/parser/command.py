@@ -74,21 +74,29 @@ class Return(Entity):
     def __init__(self,
                  filename,
                  lineno,
+                 value = None,
                  mappings = list()):
         Entity.__init__(self, filename, lineno)
+        self.value = value
         self.mappings = mappings
 
     def accept(self, visitor):
         visitor.visit(self)
 
     def __str__(self):
-        return "return %s" % \
-               ("()" if not self.mappings \
-                     else ", ".join(map(lambda m: str(m), self.mappings)))
+        def value_str():
+            if self.value is not None:
+                return str(self.value)
+            elif not self.mappings:
+                return "()"
+            else:
+                return ", ".join(map(lambda m: str(m), self.mappings))
+        return "return %s" % value_str()
 
     def __repr__(self):
-        return "<Return:\n\tmappings = %s\n\tentity = %s>" % \
-               ("()" if not self.mappings \
+        return "<Return:\n\tvalue = %s\n\tmappings = %s\n\tentity = %s>" % \
+               (self.value,
+                "()" if not self.mappings \
                      else ", ".join(map(lambda m: m.__repr__(), self.mappings)), \
                 super(Return, self).__repr__())
 
@@ -124,10 +132,12 @@ class IfCommand(Entity):
     def __init__(self,
                  filename,
                  lineno,
+                 identifier,
                  condition,
                  then_commands,
                  else_commands):
         Entity.__init__(self, filename, lineno)
+        self.identifier = identifier
         self.condition = condition
         self.then_commands = IfCommand.ThenBlock(filename, then_commands[0].lineno, then_commands, self)
         self.else_commands = IfCommand.ElseBlock(filename, else_commands[0].lineno, else_commands, self)
@@ -140,18 +150,24 @@ class IfCommand(Entity):
 
     def __str__(self):
         f = lambda cmd: str(cmd)
-        l = ['if',
-             str(self.condition),
-             'then',
-             " ".join(map(f, self.then_commands)),
-             'else',
-             " ".join(map(f, self.else_commands)),
-             'endif']
+        l = list()
+        if self.identifier:
+            l.extend([str(self.identifier), '<-'])
+        l.extend(['if',
+                  str(self.condition),
+                  'then',
+                  " ".join(map(f, self.then_commands)),
+                  'else',
+                  " ".join(map(f, self.else_commands)),
+                  'endif'])
         return " ".join(l)
 
     def __repr__(self):
         f = lambda cmd: cmd.__repr__()
-        return "<IfCommand:\n\tcondition = %s,\n\tthen_commands = %s,\n\t" \
+        return "<IfCommand:\n\tidentifier = %s\n\tcondition = %s,\n\tthen_commands = %s,\n\t" \
                "else_commands = %s\n\tentity = %s>" % \
-               (self.condition.__repr__(), " ".join(map(f, self.then_commands)),
-                " ".join(map(f, self.else_commands)), super(IfCommand, self).__repr__())
+               (self.identifier.__repr__(),
+                self.condition.__repr__(),
+                " ".join(map(f, self.then_commands)),
+                " ".join(map(f, self.else_commands)),
+                super(IfCommand, self).__repr__())
