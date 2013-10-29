@@ -114,22 +114,25 @@ class ExecutorVisitor(object):
     def _lookup_var(self, expr):
         return self._var_table[expr]
 
+    def _generate_terminal(self, terminal):
+        if isinstance(terminal, StateIdentifier):
+            return "s['%s']" % terminal.identifier
+        elif isinstance(terminal, Identifier) and \
+             terminal in self._module.resolution_symbols['assignment_table']:
+            return self._lookup_var(terminal)
+        elif isinstance(terminal, Identifier):
+            return "a['%s']" % terminal
+        elif isinstance(terminal, Literal):
+            return str(terminal)
+        else:
+            print type(terminal)
+            raise ValueError("Unexpected terminal in conditional: filename = %s, line no = %d" % \
+                             (terminal.filename, terminal.lineno))
+
     def _generate_condition(self, cond_expr):
         # Terminal!
         if isinstance(cond_expr, TerminalConditionalExpression):
-            terminal = cond_expr.terminal
-            if isinstance(terminal, StateIdentifier):
-                return "s['%s']" % terminal
-            elif isinstance(terminal, Identifier) and \
-                 terminal in self._module.resolution_symbols['assignment_table']:
-                return self._lookup_var(terminal)
-            elif isinstance(terminal, Identifier):
-                return "a['%s']" % terminal
-            elif isinstance(terminal, Literal):
-                return str(terminal)
-            else:
-                raise ValueError("Unexpected terminal in conditional: filename = %s, line no = %d" % \
-                                 (terminal.filename, terminal.lineno))
+            return self._generate_terminal(cond_expr.terminal)
         elif isinstance(cond_expr, ConditionalExpression):
             left_code = self._generate_condition(cond_expr.left)
             right_code = self._generate_condition(cond_expr.right)

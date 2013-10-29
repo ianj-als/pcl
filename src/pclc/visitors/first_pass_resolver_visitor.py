@@ -968,7 +968,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
         # Missing 'from' maps
         self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown variable in return %(unknown)s",
-                         missing_froms,
+                         [mf for mf in missing_froms if not isinstance(mf, Literal)],
                          lambda m: {'filename' : m.filename,
                                     'lineno' : m.lineno,
                                     'unknown' : str(m)})

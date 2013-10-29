@@ -123,22 +123,16 @@ class IntermediateRepresentation(object):
 
     def generate_code(self, executor_visitor, assignment_symbol_table):
         # Generate function call lambdas
-        generate_func_args = lambda args: ", ".join(["s['%s']" % a.identifier if isinstance(a, StateIdentifier) \
-                                                     else executor_visitor._lookup_var(a) if isinstance(a, Identifier) and \
-                                                                                             a in assignment_symbol_table \
-                                                     else "a['%s']" % a if isinstance(a, Identifier) \
-                                                     else str(a) for a in args])
+        generate_func_args = lambda args: ", ".join([executor_visitor._generate_terminal(a) for a in args])
         generate_func_call = lambda f: "____%s(%s)" % (f.name, generate_func_args(f.arguments))
 
         code = list()
         for node in self.__root:
-            code.extend(self.__generate_code(node, generate_func_call, executor_visitor))
+            code.extend(self.__generate_code(node, generate_func_call, executor_visitor, False))
 
-        top_function_name = self.__lookup_function_name(self.__root[0].object)
+        return code
 
-        return (code, top_function_name)
-
-    def __generate_code(self, node, generate_function_call, executor_visitor):
+    def __generate_code(self, node, generate_function_call, executor_visitor, is_value_returned = True):
         code = list()
 
         if isinstance(node, IntermediateRepresentation.IRCommandNode):
@@ -156,7 +150,10 @@ class IntermediateRepresentation(object):
                 code.extend(more_code)
 
             code.append((None, "-"))
-            code.append(("%s(a, s)" % self.__lookup_function_name(command), ""))
+            if is_value_returned:
+                code.append(("return %s(a, s)" % self.__lookup_function_name(command), ""))
+            else:
+                code.append(("return %s" % self.__lookup_function_name(command), ""))
         elif isinstance(node, IntermediateRepresentation.IRIfNode):
             # If command action code generation
             if_command = node.object
@@ -180,6 +177,8 @@ class IntermediateRepresentation(object):
             return_command = node.object
             if len(return_command.mappings) == 0:
                 code.append(("return None", ""))
+            else:
+                code.append(("return {%s}" % ", ".join(["'%s' : %s" % (m.to, executor_visitor._generate_terminal(m.from_)) for m in return_command.mappings]), ""))
                             
         return code
 
@@ -282,13 +281,10 @@ class DoExecutorVisitor(ExecutorVisitor):
 
     @multimethod(object)
     def visit(self, nowt):
-        func_defs, top_function_name = self.__ir.generate_code(self, self._module.resolution_symbols['assignment_table'])
+        func_defs = self.__ir.generate_code(self, self._module.resolution_symbols['assignment_table'])
 
         # Write initialise function
         self._write_function("initialise", func_defs, ["config"])
-        self._reset_indent_level()
-        self._write_lines([("", "+")])
-        self._write_line("return %s" % top_function_name)
         self._object_file.close()
 
     @multimethod(Function)

@@ -16,9 +16,18 @@
 # You should have received a copy of the GNU General Public License
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
+import pcl.system.process as process
+import pcl.util.list as list
+import pcl.util.string as string
 
-# split :: String -> String -> String
-split = lambda s, ss: s.__str__().split(ss)
-
-# join :: [String] -> String -> String
-join = lambda l, s: s.join([str(e) for e in l])
+component sleep
+  input sleep_time
+  output complete
+  configuration sleep_command
+  do
+    cmd.list <- list.cons()
+    list.append(cmd.list, @sleep_command)
+    list.append(cmd.list, sleep_time)
+    cmd.line <- string.join(cmd.list, " ")
+    process.callAndCheck(cmd.line)
+    return complete <- True
