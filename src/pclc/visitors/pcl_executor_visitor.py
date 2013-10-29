@@ -75,6 +75,9 @@ class PCLExecutorVisitor(ExecutorVisitor):
 
     def __init__(self, filename_root, is_instrumented = False):
         ExecutorVisitor.__init__(self, filename_root, PCLExecutorVisitor.__IMPORTS, is_instrumented)
+        if self._is_instrumented:
+            self._write_line(PCLExecutorVisitor.__INSTRUMENTATION_FUNCTIONS)
+        self._write_line()
 
     @multimethod(Module)
     def visit(self, module):

@@ -121,18 +121,24 @@ class IntermediateRepresentation(object):
         else:
             self.__current_node.add_child(node)
 
-    def generate_code(self, executor_visitor, assignment_symbol_table):
+    def generate_code(self, executor_visitor, assignment_symbol_table, is_instrumented):
         # Generate function call lambdas
         generate_func_args = lambda args: ", ".join([executor_visitor._generate_terminal(a) for a in args])
         generate_func_call = lambda f: "____%s(%s)" % (f.name, generate_func_args(f.arguments))
 
-        code = list()
+        top_function_name = self.__get_function_name(executor_visitor._module.definition.identifier)
+        code = [("def %s(a, s):" % top_function_name, "+")]
         for node in self.__root:
-            code.extend(self.__generate_code(node, generate_func_call, executor_visitor, False))
+            code.extend(self.__generate_code(node,
+                                             generate_func_call,
+                                             executor_visitor,
+                                             is_instrumented))
+        code.extend([(None, "-"),
+                     ("return %s" % top_function_name, "")])
 
         return code
 
-    def __generate_code(self, node, generate_function_call, executor_visitor, is_value_returned = True):
+    def __generate_code(self, node, generate_function_call, executor_visitor, is_instrumented):
         code = list()
 
         if isinstance(node, IntermediateRepresentation.IRCommandNode):
@@ -146,14 +152,21 @@ class IntermediateRepresentation(object):
                 code.append((generate_function_call(command.function), ""))
 
             for child in node.children:
-                more_code = self.__generate_code(child, generate_function_call, executor_visitor)
+                more_code = self.__generate_code(child,
+                                                 generate_function_call,
+                                                 executor_visitor,
+                                                 is_instrumented)
                 code.extend(more_code)
 
             code.append((None, "-"))
-            if is_value_returned:
-                code.append(("return %s(a, s)" % self.__lookup_function_name(command), ""))
+            if is_instrumented:
+                value_var = executor_visitor._get_temp_var(command)
+                code.append(("____instr_command_begin('%s', %d, '%s', a, s)" % (command.filename, command.lineno, command), ""))
+                code.append(("%s = %s(a, s)" % (value_var,
+                                                self.__lookup_function_name(command)), ""))
+                code.append(("return %s" % value_var, ""))
             else:
-                code.append(("return %s" % self.__lookup_function_name(command), ""))
+                code.append(("return %s(a, s)" % self.__lookup_function_name(command), ""))
         elif isinstance(node, IntermediateRepresentation.IRIfNode):
             # If command action code generation
             if_command = node.object
@@ -161,15 +174,20 @@ class IntermediateRepresentation(object):
             code.append(("if %s:" % executor_visitor._generate_condition(if_command.condition), "+"))
 
             for then_node in node.then_block:
-                more_code = self.__generate_code(then_node, generate_function_call, executor_visitor)
+                more_code = self.__generate_code(then_node,
+                                                 generate_function_call,
+                                                 executor_visitor,
+                                                 is_instrumented)
                 code.extend(more_code)
             code.append((None, "-"))
             
             code.append(("else:", "+"))
             for else_node in node.else_block:
-                more_code = self.__generate_code(else_node, generate_function_call, executor_visitor)
+                more_code = self.__generate_code(else_node,
+                                                 generate_function_call,
+                                                 executor_visitor,
+                                                 is_instrumented)
                 code.extend(more_code)
-            
 
             code.append((None, "-"))
             if if_command.identifier:
@@ -184,8 +202,10 @@ class IntermediateRepresentation(object):
             elif len(return_command.mappings) == 0:
                 code.append(("return None", ""))
             else:
-                code.append(("return {%s}" % ", ".join(["'%s' : %s" % (m.to, executor_visitor._generate_terminal(m.from_)) for m in return_command.mappings]), ""))
-                            
+                code.append(("return {%s}" % ", ".join(["'%s' : %s" % \
+                                                        (m.to, executor_visitor._generate_terminal(m.from_)) \
+                                                        for m in return_command.mappings]), ""))
+
         return code
 
     def __get_function_name(self, function):
@@ -198,49 +218,20 @@ class IntermediateRepresentation(object):
         return self.__func_table[function]
 
 
-
-##            # Generate the whole code
-##            def generate_code(cmd_iterator, accum):
-##                cmd = None
-##                try:
-##                    cmd = cmd_iterator.next()
-##                except StopIteration:
-##                    return None
-
-##                print cmd, type(cmd)
-
-##                if isinstance(cmd, Command):
-##                    accum.append()
-##                    accum.append()
-##                elif isinstance(cmd, IfCommand):
-##                    accum.append(())
-##                    accum.append((None, "+"))
-##                    #accum.extend(generate_code(cmd.then_commands.__iter__(), accum))
-##                    accum.append((None, "-"))
-##                    accum.append(("else:", "+"))
-##                    #accum.extend(generate_code(cmd.else_commands.__iter__(), accum))
-
-##                more_code = generate_code(cmd_iterator, accum)
-##                if more_code:
-##                    accum.extend(more_code)
-
-##                if isinstance(cmd, Command):
-##                    accum.append()
-##                accum.append()
-
-##                # Generate some code
-##                iterator = self.__commands.__iter__()
-##                func_defs = list()
-##                generate_code(iterator, func_defs)
-
-
 @multimethodclass
 class DoExecutorVisitor(ExecutorVisitor):
+    __INSTRUMENTATION_FUNCTION = "import sys, threading, datetime\n" \
+                                 "def ____instr_command_begin(filename, lineno, cmd_type, a, s):\n" \
+                                 "  print >> sys.stderr, '%s: %s: Component %s begining %s, at line %d (%s), with input %s and state %s' % (datetime.datetime.now().strftime('%x %X.%f'), threading.current_thread().name, get_name(), cmd_type, lineno, filename, a, {skey : s[skey] for skey in filter(lambda k: k != '____prev_', s.keys())})\n"
+
     def __init__(self, filename_root, is_instrumented):
         ExecutorVisitor.__init__(self, filename_root, "", is_instrumented)
         self.__ir = IntermediateRepresentation()
         self.__func_no = 0
         self.__func_table = dict()
+        if self._is_instrumented:
+            self._write_line(DoExecutorVisitor.__INSTRUMENTATION_FUNCTION)
+        self._write_line()
 
     @multimethod(Module)
     def visit(self, module):
@@ -287,7 +278,9 @@ class DoExecutorVisitor(ExecutorVisitor):
 
     @multimethod(object)
     def visit(self, nowt):
-        func_defs = self.__ir.generate_code(self, self._module.resolution_symbols['assignment_table'])
+        func_defs = self.__ir.generate_code(self,
+                                            self._module.resolution_symbols['assignment_table'],
+                                            self._is_instrumented)
 
         # Write initialise function
         self._write_function("initialise", func_defs, ["config"])

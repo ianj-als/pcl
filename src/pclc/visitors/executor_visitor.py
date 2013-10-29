@@ -56,9 +56,6 @@ class ExecutorVisitor(object):
                        datetime.datetime.now().strftime("%A %d %B %Y at %H:%M:%S")}
         self._write_line((ExecutorVisitor.__HEADER + imports) % header_args)
         self._is_instrumented = is_instrumented
-        if self._is_instrumented:
-            self.__write_line(ExecutorVisitor.__INSTRUMENTATION_FUNCTIONS)
-        self._write_line()
         self.__conditional_operators = {AndConditionalExpression : 'and',
                                         OrConditionalExpression : 'or',
                                         XorConditionalExpression : '^',
@@ -125,7 +122,6 @@ class ExecutorVisitor(object):
         elif isinstance(terminal, Literal):
             return str(terminal)
         else:
-            print type(terminal)
             raise ValueError("Unexpected terminal in conditional: filename = %s, line no = %d" % \
                              (terminal.filename, terminal.lineno))
 
