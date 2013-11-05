@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language: Pipeline Creation Language
 " Maintainer: Ian Johnson
-" Latest Revision: 18 March 2013
+" Latest Revision: 5 November 2013
 
 if version < 600
   syntax clear
@@ -9,9 +9,9 @@ elseif exists("b:current_syntax")
   finish
 endif
 
-syn keyword pclKeywords as component configuration declare
-syn keyword pclKeywords input inputs output outputs
-syn keyword pclKeywords merge new split wire with
+syn keyword pclKeywords and as bottom component configuration declare do
+syn keyword pclKeywords else endif if input inputs or output outputs
+syn keyword pclKeywords merge new return split then top wire with xor
 syn keyword pclStatement component nextgroup=pclIdentifier skipwhite
 syn keyword pclImports import
 
@@ -20,7 +20,7 @@ syn match pclIdentifier "\h\+"
 syn match pclQualifiedIdentifier "\h\+\(\.\h\+\)\+"
 syn match pclStateIdentifier "@\h\+"
 syn match pclStateQualifiedIdentifier "@\h\+\(\.\h\+\)\+"
-syn match pclOperators ":=\|->\|>>>\|\*\*\*\|&&&\|first\|second"
+syn match pclOperators ":=\|->\|<-\|>>>\|\*\*\*\|&&&\|first\|second"
 
 hi def link pclKeywords Statement
 hi def link pclStatement Statement

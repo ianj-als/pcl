@@ -17,8 +17,16 @@
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# split :: String -> String -> String
+# split :: String -> String -> [String]
 split = lambda s, ss: s.__str__().split(ss)
 
 # join :: [String] -> String -> String
 join = lambda l, s: s.join([str(e) for e in l])
+
+# lower :: String -> String
+lower = lambda s: s.__str__().lower()
+
+# upper :: String -> String
+upper = lambda s: s.__str__().upper()
+
+

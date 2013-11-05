@@ -19,13 +19,16 @@
 import os
 
 # exists :: String -> Bool
-exists = lambda p: os.path.exists(p)
+exists = lambda p: os.path.exists(p.__str__())
 
 # join :: String -> String -> String
-join = lambda *args: os.path.join(*args)
+join = lambda *args: os.path.join(*[str(a) for a in args])
 
 # mkdir :: String -> ()
-mkdir = lambda p: os.mkdir(p)
+mkdir = lambda p: os.mkdir(p.__str__())
+
+# makedirs :: String > ()
+makedirs = lambda p: os.makedirs(p.__str__())
 
 # basename :: String -> String
-basename = lambda s: os.path.basename(s)
+basename = lambda s: os.path.basename(s.__str__())

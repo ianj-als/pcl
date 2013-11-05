@@ -189,7 +189,7 @@ class IntermediateRepresentation(object):
                                                  is_instrumented)
                 code.extend(more_code)
 
-            code.append((None, "-"))
+            code.extend([(None, "-"), (None, "-")])
             if if_command.identifier:
                 code.append(("%s = %s(a, s)" % (executor_visitor._get_temp_var(if_command.identifier), \
                                                 self.__lookup_function_name(if_command)), ""))

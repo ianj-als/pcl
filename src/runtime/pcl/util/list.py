@@ -18,7 +18,7 @@
 #
 
 # cons :: []
-cons = lambda : list()
+cons = lambda *args: [a for a in args] if args else list()
 
 # concat :: [*] -> [*] -> [*]
 concat = lambda l, m: l + m
@@ -30,7 +30,7 @@ append = lambda l, x: l.append(x) or x
 length = lambda l: len(l)
 
 # insert :: [a] -> Int -> a
-insert = lambda l, i, x: l.insert(i, x) or x
+insert = lambda l, i, x: l.insert(int(i), x) or x
 
 # head :: [a] -> a
 head = lambda l: l[0]

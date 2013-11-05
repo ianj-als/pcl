@@ -19,13 +19,20 @@
 import subprocess
 import sys
 
-# callAndCheck :: String -> File -> File -> File
+# callAndCheck :: * -> File -> File -> File
 def callAndCheck(program,
                  stdin_stream = sys.stdin,
                  stdout_stream = sys.stdout,
                  stderr_stream = sys.stderr):
-    subprocess.check_call(program,
+    is_shell = False
+    if hasattr(program, "__iter__"):
+        cmd_line = [str(c) for c in program]
+    else:
+        cmd_line = str(program)
+        is_shell = True
+
+    subprocess.check_call(cmd_line,
                           stdin = stdin_stream,
                           stdout = stdout_stream,
                           stderr = stderr_stream,
-                          shell = True)
+                          shell = is_shell)
