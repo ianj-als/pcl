@@ -19,20 +19,37 @@
 import subprocess
 import sys
 
+
+def __pre_process_program(program):
+  is_shell = False
+  if hasattr(program, "__iter__"):
+      cmd_line = [str(c) for c in program]
+  else:
+      cmd_line = str(program)
+      is_shell = True
+
+  return cmd_line, is_shell
+
+
 # callAndCheck :: * -> File -> File -> File
 def callAndCheck(program,
                  stdin_stream = sys.stdin,
                  stdout_stream = sys.stdout,
                  stderr_stream = sys.stderr):
-    is_shell = False
-    if hasattr(program, "__iter__"):
-        cmd_line = [str(c) for c in program]
-    else:
-        cmd_line = str(program)
-        is_shell = True
-
+    cmd_line, is_shell = __pre_process_program(program)
     subprocess.check_call(cmd_line,
                           stdin = stdin_stream,
                           stdout = stdout_stream,
                           stderr = stderr_stream,
                           shell = is_shell)
+
+def checkOutput(program,
+                stdin_stream = sys.stdin,
+                stdout_stream = sys.stdout,
+                stderr_stream = sys.stderr):
+    cmd_line, is_shell = __pre_process_program(program)
+    return subprocess.check_output(cmd_line,
+                                   stdin = stdin_stream,
+                                   stdout = stdout_stream,
+                                   stderr = stderr_stream,
+                                   shell = is_shell)

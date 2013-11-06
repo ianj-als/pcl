@@ -23,3 +23,6 @@ openFile = lambda fn, flags: open(fn, flags)
 
 # closeFile :: file -> ()
 closeFile = lambda f: f.close()
+
+# rewindFile :: file -> ()
+rewindFile = lambda f: f.seek(0)

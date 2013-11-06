@@ -32,3 +32,8 @@ makedirs = lambda p: os.makedirs(p.__str__())
 
 # basename :: String -> String
 basename = lambda s: os.path.basename(s.__str__())
+
+# splitext :: String -> [String]
+def splitext(s):
+  t = os.path.splitext(s.__str__())
+  return [t[0], t[1].split('.')[-1]]
