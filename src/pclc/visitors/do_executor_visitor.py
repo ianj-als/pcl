@@ -144,10 +144,10 @@ class IntermediateRepresentation(object):
         self.__current_node = self.__current_let.parent
         self.__current_let = None
 
-    def generate_code(self, executor_visitor, assignment_symbol_table, is_instrumented):
+    def generate_code(self, executor_visitor, is_instrumented):
         # Generate function call lambdas
-        generate_func_args = lambda args: ", ".join([executor_visitor._generate_terminal(a) for a in args])
-        generate_func_call = lambda f: "____%s(%s)" % (f.name, generate_func_args(f.arguments))
+        generate_func_args = lambda args, scope: ", ".join([executor_visitor._generate_terminal(a, scope) for a in args])
+        generate_func_call = lambda f, scope: "____%s(%s)" % (f.name, generate_func_args(f.arguments, scope))
 
         top_function_name = self.__get_function_name(executor_visitor._module.definition.identifier)
         code = [("def %s(a, s):" % top_function_name, "+")]
@@ -167,12 +167,14 @@ class IntermediateRepresentation(object):
         if isinstance(node, IntermediateRepresentation.IRCommandNode):
             # Command action code generation
             command = node.object
+            scope = command['scope']
+
             code.append(("def %s(a, s):" % self.__get_function_name(command), "+"))
             if command.identifier:
                 code.append(("%s = %s" % (executor_visitor._get_temp_var(command.identifier), \
-                                          generate_function_call(command.function)), ""))
+                                          generate_function_call(command.function, scope)), ""))
             else:
-                code.append((generate_function_call(command.function), ""))
+                code.append((generate_function_call(command.function, scope), ""))
 
             for child in node.children:
                 more_code = self.__generate_code(child,
@@ -193,8 +195,10 @@ class IntermediateRepresentation(object):
         elif isinstance(node, IntermediateRepresentation.IRIfNode):
             # If command action code generation
             if_command = node.object
+            scope = if_command['scope']
+
             code.append(("def %s(a, s):" % self.__get_function_name(if_command), "+"))
-            code.append(("if %s:" % executor_visitor._generate_condition(if_command.condition), "+"))
+            code.append(("if %s:" % executor_visitor._generate_condition(if_command.condition, scope), "+"))
 
             for then_node in node.then_block:
                 more_code = self.__generate_code(then_node,
@@ -220,13 +224,15 @@ class IntermediateRepresentation(object):
                 code.append(("%s(a, s)" % self.__lookup_function_name(if_command), ""))
         elif isinstance(node, IntermediateRepresentation.IRReturnNode):
             return_command = node.object
+            scope = return_command['scope']
+
             if return_command.value:
-                code.append(("return %s" % executor_visitor._generate_terminal(return_command.value)))
+                code.append(("return %s" % executor_visitor._generate_terminal(return_command.value, scope)))
             elif len(return_command.mappings) == 0:
                 code.append(("return None", ""))
             else:
                 code.append(("return {%s}" % ", ".join(["'%s' : %s" % \
-                                                        (m.to, executor_visitor._generate_terminal(m.from_)) \
+                                                        (m.to, executor_visitor._generate_terminal(m.from_, scope)) \
                                                         for m in return_command.mappings]), ""))
         elif isinstance(node, IntermediateRepresentation.IRLetNode):
             # Let command
@@ -247,7 +253,8 @@ class IntermediateRepresentation(object):
             #                                 executor_visitor,
             #                                 is_instrumented)
             code.append(("%s = %s" % (executor_visitor._get_temp_var(let_command.expression), \
-                                      generate_function_call(let_command.expression)), ""))
+                                      generate_function_call(let_command.expression,
+                                                             let_command.expression['scope'])), ""))
             code.append(("return %s" % executor_visitor._lookup_var(let_command.expression), ""))
 
             code.extend([(None, "-"), (None, "-")])
@@ -290,9 +297,7 @@ class DoExecutorVisitor(ExecutorVisitor):
 
     @multimethod(Import)
     def visit(self, an_import):
-        self._write_line("import %s as ____%s" % \
-                         (an_import.module_name, \
-                          an_import.alias))
+        self._write_line("import %s as ____%s" % (an_import.module_name, an_import.alias))
 
     @multimethod(Component)
     def visit(self, component):
@@ -329,9 +334,7 @@ class DoExecutorVisitor(ExecutorVisitor):
 
     @multimethod(object)
     def visit(self, nowt):
-        func_defs = self.__ir.generate_code(self,
-                                            self._module.resolution_symbols['assignment_table'],
-                                            self._is_instrumented)
+        func_defs = self.__ir.generate_code(self, self._is_instrumented)
 
         # Write initialise function
         self._write_function("initialise", func_defs, ["config"])

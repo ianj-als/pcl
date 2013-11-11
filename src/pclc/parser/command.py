@@ -19,13 +19,24 @@
 from entity import Entity
 
 
-class Function(Entity):
+class ResolutionSymbols(object):
+    def __init__(self):
+        self.symbols = dict()
+
+    def __setitem__(self, symbol, value):
+        self.symbols[symbol] = value
+
+    def __getitem__(self, symbol):
+        return self.symbols[symbol]
+
+class Function(Entity, ResolutionSymbols):
     def __init__(self,
                  filename,
                  lineno,
                  name,
                  arguments):
         Entity.__init__(self, filename, lineno)
+        ResolutionSymbols.__init__(self)
         self.name = name
         self.arguments = arguments
 
@@ -43,13 +54,14 @@ class Function(Entity):
                 ", ".join(map(lambda arg: arg.__repr__(), self.arguments)),
                 super(Function, self).__repr__())
 
-class Command(Entity):
+class Command(Entity, ResolutionSymbols):
     def __init__(self,
                  filename,
                  lineno,
                  identifier,
                  function):
         Entity.__init__(self, filename, lineno)
+        ResolutionSymbols.__init__(self)
         self.identifier = identifier
         self.function = function
 
@@ -71,13 +83,14 @@ class Command(Entity):
                 repr(self.function),
                 super(Command, self).__repr__())
 
-class Return(Entity):
+class Return(Entity, ResolutionSymbols):
     def __init__(self,
                  filename,
                  lineno,
                  value = None,
                  mappings = list()):
         Entity.__init__(self, filename, lineno)
+        ResolutionSymbols.__init__(self)
         self.value = value
         self.mappings = mappings
 
@@ -101,7 +114,7 @@ class Return(Entity):
                      else ", ".join(map(lambda m: repr(m), self.mappings)), \
                 super(Return, self).__repr__())
 
-class IfCommand(Entity):
+class IfCommand(Entity, ResolutionSymbols):
     class Block(Entity):
         def __init__(self, filename, lineno, commands, if_command):
             Entity.__init__(self, filename, lineno)
@@ -138,6 +151,7 @@ class IfCommand(Entity):
                  then_commands,
                  else_commands):
         Entity.__init__(self, filename, lineno)
+        ResolutionSymbols.__init__(self)
         self.identifier = identifier
         self.condition = condition
         self.then_commands = IfCommand.ThenBlock(filename, then_commands[0].lineno, then_commands, self)
@@ -173,7 +187,7 @@ class IfCommand(Entity):
                 " ".join(map(f, self.else_commands)),
                 super(IfCommand, self).__repr__())
 
-class LetCommand(Entity):
+class LetCommand(Entity, ResolutionSymbols):
     class LetBindings(Entity):
         def __init__(self,
                      filename,
@@ -207,6 +221,7 @@ class LetCommand(Entity):
                  bindings,
                  expression):
         Entity.__init__(self, filename, lineno)
+        ResolutionSymbols.__init__(self)
         self.identifier = identifier
         self.bindings = LetCommand.LetBindings(filename, bindings[0].lineno, bindings)
         self.expression = expression

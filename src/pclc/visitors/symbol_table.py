@@ -17,88 +17,56 @@
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
 class SymbolTable(object):
-    class Scope(object):
-        def __init__(self):
-            self.__table = dict()
-            self.__nested_scopes = list()
-            self.__root = None
-
-        def addNestedScope(self, scope):
-            scope.__root = self
-            return self.__nested_scopes.append(scope)
-
-        def getRoot(self):
-            return self.__root
-
-        def __getitem__(self, key):
-            return self.__table[key]
-
-        def __setitem__(self, key, value):
-            self.__table[key] = value
-
-        def __delitem__(self, key):
-            del self.__table[key]
-
-        def __contains__(self, item):
-            return item in self.__table
-
-        def __iteritems__(self):
-            return self.__table.__iteritems__()
-
-        def iterkeys(self):
-            return self.__table.iterkeys()
-
-        def keys(self):
-            return self.__table.keys()
-
-        def has_key(self, key):
-            return self.__table.has_key(key)
-
-        def _get_nested_scopes_iter(self):
-            return self.__nested_scopes.__iter__()
-
     def __init__(self):
-        self.__tree = SymbolTable.Scope()
-        self.__current_scope = self.__tree
+        self.__table = dict()
+        self.__nested_scopes = list()
+        self.__parent = None
+
+    def add_nested_scope(self, scope):
+        scope.__parent = self
+        return self.__nested_scopes.append(scope)
+
+    def get_parent(self):
+        return self.__parent
 
     def __getitem__(self, key):
-        scope = self.__current_scope
-        while scope is not None:
-            if scope.has_key(key):
-                return scope[key]
-            scope.getRoot()
-
-        raise KeyError
+        return self.__table[key]
 
     def __setitem__(self, key, value):
-        self.__current_scope[key] = value
+        self.__table[key] = value
+
+    def __delitem__(self, key):
+        del self.__table[key]
 
     def __contains__(self, item):
-        scope = self.__current_scope
+        scope = self
         while scope is not None:
-            if item in scope:
+            if item in scope.__table:
                 return True
-            scope = scope.getRoot()
+            scope = scope.__parent
 
         return False
 
-    def push_inner_scope(self):
-        scope = SymbolTable.Scope()
-        self.__current_scope.addNestedScope(scope)
-        self.__current_scope = scope
+    def __iteritems__(self):
+        return self.__table.__iteritems__()
 
-    def pop_inner_scope(self):
-        outer_scope = self.__current_scope.getRoot()
-        if outer_scope is not None:
-            self.__current_scope = outer_scope
+    def iterkeys(self):
+        return self.__table.iterkeys()
+
+    def keys(self):
+        return self.__table.keys()
+
+    def has_key(self, key):
+        return self.__table.has_key(key)
 
     def __str__(self):
         disp = lambda s, d: ("  " * d) + ("%d : " % d) + ", ".join([str(sym) for sym in s.keys()]) + "\n"
 
-        def trav(s, d):
-            rep = disp(s, d)
-            for ns in s._get_nested_scopes_iter():
-                rep += trav(ns, d + 1)
-            return rep
-        
-        return trav(self.__tree, 0)
+        def trav(st):
+            if st is None:
+                return (0, "")
+
+            depth, result = trav(st.__parent)
+            return (depth + 1, result + disp(st, depth))
+
+        return trav(self)[1]

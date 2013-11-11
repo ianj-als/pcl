@@ -200,6 +200,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
     def visit(self, module):
         self._module = module
         if not self._module.__dict__.has_key("resolution_symbols"):
+            global_symbol_table = SymbolTable()
             self._module.resolution_symbols = {'imports' : dict(),
                                                'components' : dict(),
                                                'used_components' : dict(),
@@ -207,7 +208,8 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                'configuration' : dict(),
                                                'unused_configuration' : list(),
                                                'command_table' : list(),
-                                               'assignment_table' : SymbolTable()}
+                                               'symbol_table' : global_symbol_table}
+            self._current_scope = global_symbol_table
         if not self.__dict__.has_key("__resolve_import"):
             self.__resolve_import = self.__resolve_runtime_import if self._module.definition.is_leaf \
                                     else self.__resolve_pcl_import
@@ -801,6 +803,9 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(Function)
     def visit(self, function):
+        # Record the current scope in the entity's resolution symbols
+        function['scope'] = self._current_scope
+
         # Get the package alias and function name
         package_alias, name = function.name.split(".")
 
@@ -870,10 +875,10 @@ class FirstPassResolverVisitor(ResolverVisitor):
             if isinstance(argument, StateIdentifier):
                 if argument not in self._module.resolution_symbols['configuration']:
                     self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
-                                     [function],
-                                     lambda f: {'filename' : f.filename,
-                                                'lineno' : f.lineno,
-                                                'arg_name' : argument})
+                                     [argument],
+                                     lambda a: {'filename' : a.filename,
+                                                'lineno' : a.lineno,
+                                                'arg_name' : a})
                 else:
                     # Mark the configuration as used
                     try:
@@ -883,12 +888,12 @@ class FirstPassResolverVisitor(ResolverVisitor):
                         pass
             elif isinstance(argument, Identifier):
                 if argument not in self._module.definition.inputs and \
-                   argument not in self._module.resolution_symbols['assignment_table']:
+                   argument not in self._current_scope:
                     self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
-                                     [function],
-                                     lambda f: {'filename' : f.filename,
-                                                'lineno' : f.lineno,
-                                                'arg_name' : argument})
+                                     [argument],
+                                     lambda a: {'filename' : a.filename,
+                                                'lineno' : a.lineno,
+                                                'arg_name' : a})
 
     def __resolve_assignment(self, identifier, assign_object):
         # Check the assigned variable is *not* an input. Inputs are immutable.
@@ -909,7 +914,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
         # Check if assignment variable has been used already. Code generation may not
         # generate all code to provide the previous use!
-        if identifier in self._module.resolution_symbols['assignment_table']:
+        if identifier in self._current_scope:
             self._add_warnings("WARNING: %(filename)s at line %(lineno)d, duplicate assignment variable %(var_name)s",
                                [identifier],
                                lambda i: {'filename' : i.filename,
@@ -917,16 +922,22 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                           'var_name' : i})
         else:
             # Record the assignment and the command
-            self._module.resolution_symbols['assignment_table'][identifier] = assign_object
+            self._current_scope[identifier] = assign_object
 
     @multimethod(Command)
     def visit(self, command):
+        # Record the current scope in the entity's resolution symbols
+        command['scope'] = self._current_scope
+
         # If no assignment then we don't need to do anything.
         if command.identifier:
             self.__resolve_assignment(command.identifier, command)
 
     @multimethod(Return)
     def visit(self, ret):
+        # Record the current scope in the entity's resolution symbols
+        ret['scope'] = self._current_scope
+
         if not ret.mappings:
             return
 
@@ -943,7 +954,8 @@ class FirstPassResolverVisitor(ResolverVisitor):
                 duplicate_to[mapping.to] = 1
 
             # Does the 'from' exist?
-            if mapping.from_ not in self._module.resolution_symbols['assignment_table']:
+            if mapping.from_ not in self._current_scope and \
+               mapping.from_ not in self._module.definition.inputs:
                 missing_froms.append(mapping.from_)
 
         # Record duplicate 'to' maps
@@ -976,28 +988,40 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(IfCommand)
     def visit(self, if_command):
-        self._module.resolution_symbols['assignment_table'].pop_inner_scope()
+        # Record the current scope in the entity's resolution symbols
+        if_command['scope'] = self._current_scope
+
+        self._current_scope = self._current_scope.get_parent()
         if if_command.identifier:
             self.__resolve_assignment(if_command.identifier, if_command)
 
     @multimethod(IfCommand.ThenBlock)
     def visit(self, then_block):
-        self._module.resolution_symbols['assignment_table'].push_inner_scope()
+        then_scope = SymbolTable()
+        self._current_scope.add_nested_scope(then_scope)
+        self._current_scope = then_scope
 
     @multimethod(IfCommand.ElseBlock)
     def visit(self, else_block):
-        self._module.resolution_symbols['assignment_table'].pop_inner_scope()
-        self._module.resolution_symbols['assignment_table'].push_inner_scope()
+        previous_scope = self._current_scope.get_parent()
+        else_scope = SymbolTable()
+        previous_scope.add_nested_scope(else_scope)
+        self._current_scope = else_scope
 
     @multimethod(LetCommand)
     def visit(self, let_command):
+        # Record the current scope in the entity's resolution symbols
+        let_command['scope'] = self._current_scope
+
         if let_command.identifier:
             self.__resolve_assignment(let_command.identifier, let_command)
 
     @multimethod(LetCommand.LetBindings)
     def visit(self, let_bindings):
-        self._module.resolution_symbols['assignment_table'].push_inner_scope()
+        let_scope = SymbolTable()
+        self._current_scope.add_nested_scope(let_scope)
+        self._current_scope = let_scope
 
     @multimethod(LetCommand.LetEnd)
     def visit(self, let_end):
-        self._module.resolution_symbols['assignment_table'].pop_inner_scope()
+        self._current_scope = self._current_scope.get_parent()

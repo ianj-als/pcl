@@ -111,11 +111,10 @@ class ExecutorVisitor(object):
     def _lookup_var(self, expr):
         return self._var_table[expr]
 
-    def _generate_terminal(self, terminal):
+    def _generate_terminal(self, terminal, scope):
         if isinstance(terminal, StateIdentifier):
             return "s['%s']" % terminal.identifier
-        elif isinstance(terminal, Identifier) and \
-             terminal in self._module.resolution_symbols['assignment_table']:
+        elif scope is not None and isinstance(terminal, Identifier) and terminal in scope:
             return self._lookup_var(terminal)
         elif isinstance(terminal, Identifier):
             return "a['%s']" % terminal
@@ -125,20 +124,20 @@ class ExecutorVisitor(object):
             raise ValueError("Unexpected terminal in conditional: filename = %s, line no = %d" % \
                              (terminal.filename, terminal.lineno))
 
-    def _generate_condition(self, cond_expr):
+    def _generate_condition(self, cond_expr, scope = None):
         # Terminal!
         if isinstance(cond_expr, TerminalConditionalExpression):
-            return self._generate_terminal(cond_expr.terminal)
+            return self._generate_terminal(cond_expr.terminal, scope)
         elif isinstance(cond_expr, ConditionalExpression):
-            left_code = self._generate_condition(cond_expr.left)
-            right_code = self._generate_condition(cond_expr.right)
+            left_code = self._generate_condition(cond_expr.left, scope)
+            right_code = self._generate_condition(cond_expr.right, scope)
             op = self.__conditional_operators[cond_expr.__class__]
             if isinstance(cond_expr, XorConditionalExpression):
                 left_code = "bool(%s)" % left_code
                 right_code = "bool(%s)" % right_code
             return "(%s %s %s)" % (left_code, op, right_code)
         elif isinstance(cond_expr, UnaryConditionalExpression):
-            return "(%s)" % self._generate_condition(cond_expr.expression)
+            return "(%s)" % self._generate_condition(cond_expr.expression, scope)
         else:
             raise ValueError("Unexpected expression in conditional: filename = %s, line no = %d" % \
                              (cond_expr.filename, cond_expr.lineno))
