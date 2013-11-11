@@ -24,7 +24,7 @@ from executor_visitor import ExecutorVisitor
 from parser.import_spec import Import
 from parser.module import Module
 from parser.component import Component
-from parser.command import Function, Command, Return, IfCommand
+from parser.command import Function, Command, Return, IfCommand, LetCommand
 from parser.conditional_expressions import ConditionalExpression, \
      AndConditionalExpression, \
      OrConditionalExpression, \
@@ -80,12 +80,22 @@ class IntermediateRepresentation(object):
         def add_child(self, node):
             pass
 
+    class IRLetNode(IRNode):
+        def __init__(self, pt_object, parent):
+            IntermediateRepresentation.IRNode.__init__(self, pt_object, parent)
+            self.bindings = list()
+
+        def add_child(self, node):
+            if isinstance(node.object, Command):
+                self.bindings.append(node)
+
     __TEMP_FUNC_FMT = "____func_%d"
 
     def __init__(self):
         self.__root = list()
         self.__current_node = None
         self.__current_if = None
+        self.__current_let = None
         self.__func_table = dict()
         self.__func_no = 0
 
@@ -120,6 +130,19 @@ class IntermediateRepresentation(object):
             self.__root.append(node)
         else:
             self.__current_node.add_child(node)
+
+    def push_let_action(self, let_command):
+        node = IntermediateRepresentation.IRLetNode(let_command, self.__current_node)
+        if node.parent is None:
+            self.__root.append(node)
+        else:
+            self.__current_node.add_child(node)
+        self.__current_node = node
+        self.__current_let = node
+
+    def mark_let_end(self):
+        self.__current_node = self.__current_let.parent
+        self.__current_let = None
 
     def generate_code(self, executor_visitor, assignment_symbol_table, is_instrumented):
         # Generate function call lambdas
@@ -205,6 +228,34 @@ class IntermediateRepresentation(object):
                 code.append(("return {%s}" % ", ".join(["'%s' : %s" % \
                                                         (m.to, executor_visitor._generate_terminal(m.from_)) \
                                                         for m in return_command.mappings]), ""))
+        elif isinstance(node, IntermediateRepresentation.IRLetNode):
+            # Let command
+            let_command = node.object
+
+            code.append(("# LET", ""))
+            code.append(("def %s(a, s):" % self.__get_function_name(let_command), "+"))
+
+            for binding in node.bindings:
+                more_code = self.__generate_code(binding,
+                                                 generate_function_call,
+                                                 executor_visitor,
+                                                 is_instrumented)
+                code.extend(more_code)
+
+            #more_code = self.__generate_code(node.expression,
+            #                                 generate_function_call,
+            #                                 executor_visitor,
+            #                                 is_instrumented)
+            code.append(("%s = %s" % (executor_visitor._get_temp_var(let_command.expression), \
+                                      generate_function_call(let_command.expression)), ""))
+            code.append(("return %s" % executor_visitor._lookup_var(let_command.expression), ""))
+
+            code.extend([(None, "-"), (None, "-")])
+            if let_command.identifier:
+                code.append(("%s = %s(a, s)" % (executor_visitor._get_temp_var(let_command.identifier), \
+                                                self.__lookup_function_name(let_command)), ""))
+            else:
+                code.append(("%s(a, s)" % self.__lookup_function_name(let_command), ""))
 
         return code
 
@@ -309,6 +360,18 @@ class DoExecutorVisitor(ExecutorVisitor):
     @multimethod(IfCommand.ElseBlock)
     def visit(self, else_block):
         self.__ir.mark_else_block()
+
+    @multimethod(LetCommand)
+    def visit(self, let_command):
+        self.__ir.push_let_action(let_command)
+
+    @multimethod(LetCommand.LetBindings)
+    def visit(self, let_bindings):
+        pass
+
+    @multimethod(LetCommand.LetEnd)
+    def visit(self, let_end):
+        self.__ir.mark_let_end()
 
     @multimethod(AndConditionalExpression)
     def visit(self, and_cond_expr):

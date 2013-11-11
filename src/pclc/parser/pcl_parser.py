@@ -26,7 +26,7 @@ from pcl_lexer import tokens, PCLLexer
 from import_spec import Import
 from component import Component
 from declaration import Declaration
-from command import Command, Function, Return, IfCommand
+from command import Command, Function, Return, IfCommand, LetCommand
 from conditional_expressions import AndConditionalExpression, \
      OrConditionalExpression, \
      XorConditionalExpression, \
@@ -390,21 +390,45 @@ def p_do_command_list(p):
 def p_do_command(p):
     '''do_command : identifier_or_qual_identifier LEFT_ARROW function
                   | function
+                  | LET let_bindings IN function
+                  | identifier_or_qual_identifier LEFT_ARROW LET let_bindings IN function
                   | IF conditional_expression THEN opt_do_command_list return_command ELSE opt_do_command_list return_command ENDIF
                   | identifier_or_qual_identifier LEFT_ARROW IF conditional_expression THEN opt_do_command_list return_command ELSE opt_do_command_list return_command ENDIF'''
     p[0] = list()
     if len(p) > 10:
+        # len(p) == 12
         p[6].append(p[7])
         p[9].append(p[10])
         p[0].append(IfCommand(p.parser.filename, p[1].lineno, p[1], p[4], p[6], p[9]))
-    elif len(p) > 4:
+    elif len(p) > 9:
+        # len(p) == 10
         p[4].append(p[5])
         p[7].append(p[8])
         p[0].append(IfCommand(p.parser.filename, p.lineno(1), None, p[2], p[4], p[7]))
+    elif len(p) > 6:
+        # len(p) == 7
+        p[0].append(LetCommand(p.parser.filename, p.lineno(1), p[1], p[4], p[6]))
+    elif len(p) > 4:
+        # len(p) == 5
+        p[0].append(LetCommand(p.parser.filename, p.lineno(1), None, p[2], p[4]))
     elif len(p) > 3:
+        # len(p) == 4
         p[0].append(Command(p.parser.filename, p[1].lineno, p[1], p[3]))
     else:
+        # len(p) == 2
         p[0].append(Command(p.parser.filename, p[1].lineno, None, p[1]))
+
+def p_let_bindings(p):
+    '''let_bindings : let_binding let_bindings
+                    | let_binding'''
+    if len(p) > 2:
+        p[0] = [p[1]] + p[2]
+    else:
+        p[0] = [p[1]]
+
+def p_let_binding(p):
+    '''let_binding : identifier_or_qual_identifier LEFT_ARROW function'''
+    p[0] = Command(p.parser.filename, p[1].lineno, p[1], p[3])
 
 def p_function(p):
     '''function : QUALIFIED_IDENTIFIER '(' opt_function_args ')' '''

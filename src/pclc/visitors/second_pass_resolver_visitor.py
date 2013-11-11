@@ -18,7 +18,7 @@
 #
 from multimethod import multimethod, multimethodclass
 from parser.import_spec import Import
-from parser.command import Function, Command, Return, IfCommand
+from parser.command import Function, Command, Return, IfCommand, LetCommand
 from parser.component import Component
 from parser.conditional_expressions import ConditionalExpression, \
      UnaryConditionalExpression, \
@@ -149,4 +149,12 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
 
     @multimethod(IfCommand.ElseBlock)
     def visit(self, else_block):
+        pass
+
+    @multimethod(LetCommand)
+    def visit(self, let_command):
+        pass
+
+    @multimethod(LetCommand.LetBindings)
+    def visit(self, let_bindings):
         pass

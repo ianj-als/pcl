@@ -1,0 +1,21 @@
+import pcl.os.path as path
+import pcl.util.list as list
+import pcl.util.string as string
+
+component let_binding
+  input filename
+  output filename.new
+  configuration working.directory
+  do
+    # Create the pathname of the re-encoded corpus
+    result <- let
+                basename <- path.basename(filename)
+                pieces <- path.splitext(basename)
+                base <- list.index(pieces, 0)
+                ext <- list.index(pieces, 1)
+                bits <- list.cons(base, "new", ext)
+                new_basename <- string.join(bits, ".")
+              in
+                path.join(@working.directory, new_basename)
+
+    return filename.new <- result

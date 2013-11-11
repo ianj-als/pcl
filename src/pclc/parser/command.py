@@ -39,7 +39,7 @@ class Function(Entity):
 
     def __repr__(self):
         return "<Function:\n\tname = %s\n\targuments = %s\n\tentity = %s>" % \
-               (self.name.__repr__(),
+               (repr(self.name),
                 ", ".join(map(lambda arg: arg.__repr__(), self.arguments)),
                 super(Function, self).__repr__())
 
@@ -67,8 +67,9 @@ class Command(Entity):
     def __repr__(self):
         return "<Command:\n\tidentifier = %s,\n\tfunction = %s,\n\t" \
                "entity = %s>" % \
-               (self.identifier.__repr__() if self.identifier else None,
-                self.function.__repr__(), super(Command, self).__repr__())
+               (repr(self.identifier),
+                repr(self.function),
+                super(Command, self).__repr__())
 
 class Return(Entity):
     def __init__(self,
@@ -95,9 +96,9 @@ class Return(Entity):
 
     def __repr__(self):
         return "<Return:\n\tvalue = %s\n\tmappings = %s\n\tentity = %s>" % \
-               (self.value,
+               (repr(self.value),
                 "()" if not self.mappings \
-                     else ", ".join(map(lambda m: m.__repr__(), self.mappings)), \
+                     else ", ".join(map(lambda m: repr(m), self.mappings)), \
                 super(Return, self).__repr__())
 
 class IfCommand(Entity):
@@ -163,11 +164,72 @@ class IfCommand(Entity):
         return " ".join(l)
 
     def __repr__(self):
-        f = lambda cmd: cmd.__repr__()
+        f = lambda cmd: repr(cmd)
         return "<IfCommand:\n\tidentifier = %s\n\tcondition = %s,\n\tthen_commands = %s,\n\t" \
                "else_commands = %s\n\tentity = %s>" % \
-               (self.identifier.__repr__(),
-                self.condition.__repr__(),
+               (repr(self.identifier),
+                repr(self.condition),
                 " ".join(map(f, self.then_commands)),
                 " ".join(map(f, self.else_commands)),
                 super(IfCommand, self).__repr__())
+
+class LetCommand(Entity):
+    class LetBindings(Entity):
+        def __init__(self,
+                     filename,
+                     lineno,
+                     bindings):
+            Entity.__init__(self, filename, lineno)
+            self.bindings = bindings
+
+        def __getitem__(self, idx):
+            return self.bindings[idx]
+
+        def __iter__(self):
+            return self.bindings.__iter__()
+
+        def accept(self, visitor):
+            visitor.visit(self)
+            for binding in self.bindings:
+                binding.accept(visitor)
+
+    class LetEnd(Entity):
+        def __init__(self, filename, lineno):
+            Entity.__init__(self, filename, lineno)
+
+        def accept(self, visitor):
+            visitor.visit(self)
+
+    def __init__(self,
+                 filename,
+                 lineno,
+                 identifier,
+                 bindings,
+                 expression):
+        Entity.__init__(self, filename, lineno)
+        self.identifier = identifier
+        self.bindings = LetCommand.LetBindings(filename, bindings[0].lineno, bindings)
+        self.expression = expression
+        self.let_end = LetCommand.LetEnd(filename, expression.lineno)
+
+    def accept(self, visitor):
+        visitor.visit(self)
+        self.bindings.accept(visitor)
+        self.expression.accept(visitor)
+        self.let_end.accept(visitor)
+
+    def __str__(self):
+        l = ['let']
+        l.extend([str(b) for b in self.bindings])
+        l.append('in')
+        l.append(str(self.expression))
+        return ' '.join(l)
+
+    def __repr__(self):
+        f = lambda t: repr(t)
+        return "<LetCommand:\n\tidentifier = %s\n\tbindings = %s\n\t" \
+               "expression = %s\n\tentity = %s>" % \
+               (repr(self.identifier),
+                " ".join(map(f, self.bindings)),
+                repr(self.expression),
+                super(LetCommand, self).__repr__())

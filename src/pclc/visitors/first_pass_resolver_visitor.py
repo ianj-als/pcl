@@ -25,7 +25,7 @@ import types
 
 from multimethod import multimethod, multimethodclass
 from parser.import_spec import Import
-from parser.command import Function, Command, Return, IfCommand
+from parser.command import Function, Command, Return, IfCommand, LetCommand
 from parser.component import Component
 from parser.conditional_expressions import AndConditionalExpression, \
      OrConditionalExpression, \
@@ -976,9 +976,9 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(IfCommand)
     def visit(self, if_command):
+        self._module.resolution_symbols['assignment_table'].pop_inner_scope()
         if if_command.identifier:
             self.__resolve_assignment(if_command.identifier, if_command)
-        self._module.resolution_symbols['assignment_table'].pop_inner_scope()
 
     @multimethod(IfCommand.ThenBlock)
     def visit(self, then_block):
@@ -988,3 +988,16 @@ class FirstPassResolverVisitor(ResolverVisitor):
     def visit(self, else_block):
         self._module.resolution_symbols['assignment_table'].pop_inner_scope()
         self._module.resolution_symbols['assignment_table'].push_inner_scope()
+
+    @multimethod(LetCommand)
+    def visit(self, let_command):
+        if let_command.identifier:
+            self.__resolve_assignment(let_command.identifier, let_command)
+
+    @multimethod(LetCommand.LetBindings)
+    def visit(self, let_bindings):
+        self._module.resolution_symbols['assignment_table'].push_inner_scope()
+
+    @multimethod(LetCommand.LetEnd)
+    def visit(self, let_end):
+        self._module.resolution_symbols['assignment_table'].pop_inner_scope()
