@@ -268,8 +268,7 @@ class PCLExecutorVisitor(ExecutorVisitor):
                            for m in merge_expr.bottom_mapping \
                            if str(m.to) != '_']
         literal_mappings = ["'%s' : %s" % \
-                            (m.to, \
-                             m.literal.value.__repr__() if isinstance(m.literal.value, str) else m.literal) \
+                            (m.to, m.literal) \
                             for m in merge_expr.literal_mapping]
         mapping = ", ".join(top_mappings + bottom_mappings + literal_mappings)
         self._write_line("%s = cons_unsplit_wire(lambda t, b: {%s})" % \
@@ -279,8 +278,7 @@ class PCLExecutorVisitor(ExecutorVisitor):
     @staticmethod
     def __build_wire_expr(mapping):
         dict_repr = ["'%s' : %s" % (m.to,
-                                    "a['%s']" % (m.from_) if isinstance(m, Mapping) \
-                                    else (m.literal.value.__repr__() if isinstance(m.literal.value, str) else m.literal)) \
+                                    "a['%s']" % (m.from_) if isinstance(m, Mapping) else m.literal)
                      for m in mapping \
                      if str(m.to) != '_']
         return "cons_wire(lambda a, s: {%s})" % (", ".join(dict_repr))
@@ -293,8 +291,8 @@ class PCLExecutorVisitor(ExecutorVisitor):
     def visit(self, wire_tuple_expr):
         self._write_line("%s = %s ** %s" % \
                          (self._get_temp_var(wire_tuple_expr),
-                          ExecutorVisitor.__build_wire_expr(wire_tuple_expr.top_mapping),
-                          ExecutorVisitor.__build_wire_expr(wire_tuple_expr.bottom_mapping)))
+                          PCLExecutorVisitor.__build_wire_expr(wire_tuple_expr.top_mapping),
+                          PCLExecutorVisitor.__build_wire_expr(wire_tuple_expr.bottom_mapping)))
 
     @multimethod(IfExpression)
     def visit(self, if_expr):
