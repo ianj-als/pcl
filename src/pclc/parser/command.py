@@ -208,8 +208,9 @@ class LetCommand(Entity, ResolutionSymbols):
                 binding.accept(visitor)
 
     class LetEnd(Entity):
-        def __init__(self, filename, lineno):
+        def __init__(self, filename, lineno, let_command):
             Entity.__init__(self, filename, lineno)
+            self.let_command = let_command
 
         def accept(self, visitor):
             visitor.visit(self)
@@ -225,7 +226,7 @@ class LetCommand(Entity, ResolutionSymbols):
         self.identifier = identifier
         self.bindings = LetCommand.LetBindings(filename, bindings[0].lineno, bindings)
         self.expression = expression
-        self.let_end = LetCommand.LetEnd(filename, expression.lineno)
+        self.let_end = LetCommand.LetEnd(filename, expression.lineno, self)
 
     def accept(self, visitor):
         visitor.visit(self)

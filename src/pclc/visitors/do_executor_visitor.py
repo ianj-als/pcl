@@ -49,6 +49,13 @@ class IntermediateRepresentation(object):
         def add_child(self, node):
             raise NotImplementedError
 
+    class IRFunctionNode(IRNode):
+        def __init__(self, pt_object, parent):
+            IntermediateRepresentation.IRNode.__init__(self, pt_object, parent)
+
+        def add_child(self, node):
+            pass
+
     class IRCommandNode(IRNode):
         def __init__(self, pt_object, parent):
             IntermediateRepresentation.IRNode.__init__(self, pt_object, parent)
@@ -140,7 +147,9 @@ class IntermediateRepresentation(object):
         self.__current_node = node
         self.__current_let = node
 
-    def mark_let_end(self):
+    def mark_let_end(self, let_expression_function):
+        node = IntermediateRepresentation.IRFunctionNode(let_expression_function, self.__current_node)
+        self.__current_node.add_child(node)
         self.__current_node = self.__current_let.parent
         self.__current_let = None
 
@@ -164,7 +173,19 @@ class IntermediateRepresentation(object):
     def __generate_code(self, node, generate_function_call, executor_visitor, is_instrumented):
         code = list()
 
-        if isinstance(node, IntermediateRepresentation.IRCommandNode):
+        if isinstance(node, IntermediateRepresentation.IRFunctionNode):
+            # Currently, this is *only* used for let expressions
+            function = node.object
+            scope = function['scope']
+
+            if is_instrumented:
+                code.append(("____instr_command_begin('%s', %d, '%s', a, s)" % (function.filename, function.lineno, function), ""))
+
+            tmp_var = executor_visitor._get_temp_var(function)
+            code.append(("%s = %s" % (tmp_var,
+                                      generate_function_call(function, scope)), ""))
+            code.append(("return %s" % tmp_var, ""))
+        elif isinstance(node, IntermediateRepresentation.IRCommandNode):
             # Command action code generation
             command = node.object
             scope = command['scope']
@@ -238,7 +259,6 @@ class IntermediateRepresentation(object):
             # Let command
             let_command = node.object
 
-            code.append(("# LET", ""))
             code.append(("def %s(a, s):" % self.__get_function_name(let_command), "+"))
 
             for binding in node.bindings:
@@ -248,16 +268,7 @@ class IntermediateRepresentation(object):
                                                  is_instrumented)
                 code.extend(more_code)
 
-            #more_code = self.__generate_code(node.expression,
-            #                                 generate_function_call,
-            #                                 executor_visitor,
-            #                                 is_instrumented)
-            code.append(("%s = %s" % (executor_visitor._get_temp_var(let_command.expression), \
-                                      generate_function_call(let_command.expression,
-                                                             let_command.expression['scope'])), ""))
-            code.append(("return %s" % executor_visitor._lookup_var(let_command.expression), ""))
-
-            code.extend([(None, "-"), (None, "-")])
+            code.append((None, "-"))
             if let_command.identifier:
                 code.append(("%s = %s(a, s)" % (executor_visitor._get_temp_var(let_command.identifier), \
                                                 self.__lookup_function_name(let_command)), ""))
@@ -374,7 +385,7 @@ class DoExecutorVisitor(ExecutorVisitor):
 
     @multimethod(LetCommand.LetEnd)
     def visit(self, let_end):
-        self.__ir.mark_let_end()
+        self.__ir.mark_let_end(let_end.let_command.expression)
 
     @multimethod(AndConditionalExpression)
     def visit(self, and_cond_expr):
