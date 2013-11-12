@@ -124,7 +124,6 @@ class PCLLexer(object):
 
     def t_STRING(self, t):
         r'"(\\.|[^"])*"'
-        t.value = t.value[1:-1].replace("\\", "")
         return t
 
     def t_newline(self, t):

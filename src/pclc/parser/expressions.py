@@ -29,7 +29,7 @@ class Literal(Entity):
          self.value = value
 
     def __str__(self):
-        return '"' + str(self.value) + '"' if type(self.value) in types.StringTypes else str(self.value)
+        return str(self.value)
 
     def __repr__(self):
         return "<Literal: value = [%s], entity = %s>" % \

@@ -45,11 +45,10 @@ def callAndCheck(program,
 
 def checkOutput(program,
                 stdin_stream = sys.stdin,
-                stdout_stream = sys.stdout,
                 stderr_stream = sys.stderr):
     cmd_line, is_shell = __pre_process_program(program)
-    return subprocess.check_output(cmd_line,
-                                   stdin = stdin_stream,
-                                   stdout = stdout_stream,
-                                   stderr = stderr_stream,
-                                   shell = is_shell)
+    output = subprocess.check_output(cmd_line,
+                                     stdin = stdin_stream,
+                                     stderr = stderr_stream,
+                                     shell = is_shell)
+    return output.strip()

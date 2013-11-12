@@ -163,7 +163,7 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
             if self._module.definition.is_leaf:
                 self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown identifier %(identifier)s",
                                  [terminal] if terminal not in self._module.definition.inputs and \
-                                               terminal not in self._module.resolution_symbols['assignment_table'] \
+                                               terminal not in term_cond_expr.scope \
                                             else [],
                                  lambda t: {'filename' : t.filename,
                                             'lineno' : t.lineno,

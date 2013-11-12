@@ -735,6 +735,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(TerminalConditionalExpression)
     def visit(self, term_cond_expr):
+        term_cond_expr.scope = self._current_scope
         terminal = term_cond_expr.terminal
         if isinstance(terminal, StateIdentifier) and \
            terminal in self._module.resolution_symbols['unused_configuration']:
