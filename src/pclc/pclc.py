@@ -27,7 +27,7 @@ from parser.resolver import Resolver
 from parser.executor import Executor
 
 
-__VERSION = "1.1.8"
+__VERSION = "1.2.0"
 
 
 if __name__ == '__main__':
