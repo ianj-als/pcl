@@ -151,6 +151,10 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
     def visit(self, else_block):
         pass
 
+    @multimethod(IfCommand.EndIf)
+    def visit(self, end_if):
+        pass
+
     @multimethod(LetCommand)
     def visit(self, let_command):
         pass

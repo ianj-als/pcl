@@ -399,12 +399,12 @@ def p_do_command(p):
         # len(p) == 12
         p[6].append(p[7])
         p[9].append(p[10])
-        p[0].append(IfCommand(p.parser.filename, p[1].lineno, p[1], p[4], p[6], p[9]))
+        p[0].append(IfCommand(p.parser.filename, p[1].lineno, p[1], p[4], p[6], p[9], p.lineno(11)))
     elif len(p) > 9:
         # len(p) == 10
         p[4].append(p[5])
         p[7].append(p[8])
-        p[0].append(IfCommand(p.parser.filename, p.lineno(1), None, p[2], p[4], p[7]))
+        p[0].append(IfCommand(p.parser.filename, p.lineno(1), None, p[2], p[4], p[7], p.lineno(9)))
     elif len(p) > 6:
         # len(p) == 7
         p[0].append(LetCommand(p.parser.filename, p.lineno(1), p[1], p[4], p[6]))

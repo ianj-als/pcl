@@ -915,12 +915,12 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
         # Check if assignment variable has been used already. Code generation may not
         # generate all code to provide the previous use!
-        if identifier in self._current_scope:
-            self._add_warnings("WARNING: %(filename)s at line %(lineno)d, duplicate assignment variable %(var_name)s",
-                               [identifier],
-                               lambda i: {'filename' : i.filename,
-                                          'lineno' : i.lineno,
-                                          'var_name' : i})
+        if self._current_scope.in_current_scope(identifier):
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, duplicate assignment variable %(var_name)s",
+                             [identifier],
+                             lambda i: {'filename' : i.filename,
+                                        'lineno' : i.lineno,
+                                        'var_name' : i})
         else:
             # Record the assignment and the command
             self._current_scope[identifier] = assign_object
@@ -992,7 +992,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
         # Record the current scope in the entity's resolution symbols
         if_command['scope'] = self._current_scope
 
-        self._current_scope = self._current_scope.get_parent()
+        # Resolve the assignment if there is one
         if if_command.identifier:
             self.__resolve_assignment(if_command.identifier, if_command)
 
@@ -1008,6 +1008,10 @@ class FirstPassResolverVisitor(ResolverVisitor):
         else_scope = SymbolTable()
         previous_scope.add_nested_scope(else_scope)
         self._current_scope = else_scope
+
+    @multimethod(IfCommand.EndIf)
+    def visit(self, end_if):
+        self._current_scope = self._current_scope.get_parent()
 
     @multimethod(LetCommand)
     def visit(self, let_command):

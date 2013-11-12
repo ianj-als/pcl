@@ -143,25 +143,36 @@ class IfCommand(Entity, ResolutionSymbols):
         def __init__(self, filename, lineno, commands, if_command):
             IfCommand.Block.__init__(self, filename, lineno, commands, if_command)
 
+    class EndIf(Entity):
+         def __init__(self, filename, lineno, if_command):
+            Entity.__init__(self, filename, lineno)
+            self.if_command = if_command
+
+         def accept(self, visitor):
+             visitor.visit(self)
+
     def __init__(self,
                  filename,
                  lineno,
                  identifier,
                  condition,
                  then_commands,
-                 else_commands):
+                 else_commands,
+                 endif_lineno):
         Entity.__init__(self, filename, lineno)
         ResolutionSymbols.__init__(self)
         self.identifier = identifier
         self.condition = condition
         self.then_commands = IfCommand.ThenBlock(filename, then_commands[0].lineno, then_commands, self)
         self.else_commands = IfCommand.ElseBlock(filename, else_commands[0].lineno, else_commands, self)
+        self.endif = IfCommand.EndIf(filename, endif_lineno, self)
 
     def accept(self, visitor):
+        visitor.visit(self)
         self.condition.accept(visitor)
         self.then_commands.accept(visitor)
         self.else_commands.accept(visitor)
-        visitor.visit(self)
+        self.endif.accept(visitor)
 
     def __str__(self):
         f = lambda cmd: str(cmd)

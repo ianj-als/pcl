@@ -29,6 +29,9 @@ class SymbolTable(object):
     def get_parent(self):
         return self.__parent
 
+    def in_current_scope(self, key):
+        return key in self.__table
+
     def __getitem__(self, key):
         return self.__table[key]
 

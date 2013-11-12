@@ -106,21 +106,22 @@ class IntermediateRepresentation(object):
         self.__func_table = dict()
         self.__func_no = 0
 
+    def __add_node(self, node, update_current_node = True):
+        if node.parent is None:
+            self.__root.append(node)
+        else:
+            self.__current_node.add_child(node)
+
+        if update_current_node:
+            self.__current_node = node
+
     def push_command_action(self, command):
         node = IntermediateRepresentation.IRCommandNode(command, self.__current_node)
-        if node.parent is None:
-            self.__root.append(node)
-        else:
-            self.__current_node.add_child(node)
-        self.__current_node = node
+        self.__add_node(node)
 
-    def push_then_block(self, then_block):
-        node = IntermediateRepresentation.IRIfNode(then_block.if_command, self.__current_node)
-        if node.parent is None:
-            self.__root.append(node)
-        else:
-            self.__current_node.add_child(node)
-        self.__current_node = node
+    def push_if_action(self, if_command):
+        node = IntermediateRepresentation.IRIfNode(if_command, self.__current_node)
+        self.__add_node(node)
         self.__current_if = node
 
     def mark_else_block(self):
@@ -133,18 +134,11 @@ class IntermediateRepresentation(object):
 
     def push_return_action(self, return_command):
         node = IntermediateRepresentation.IRReturnNode(return_command, self.__current_node)
-        if node.parent is None:
-            self.__root.append(node)
-        else:
-            self.__current_node.add_child(node)
+        self.__add_node(node, False)
 
     def push_let_action(self, let_command):
         node = IntermediateRepresentation.IRLetNode(let_command, self.__current_node)
-        if node.parent is None:
-            self.__root.append(node)
-        else:
-            self.__current_node.add_child(node)
-        self.__current_node = node
+        self.__add_node(node)
         self.__current_let = node
 
     def mark_let_end(self, let_expression_function):
@@ -248,7 +242,7 @@ class IntermediateRepresentation(object):
             scope = return_command['scope']
 
             if return_command.value:
-                code.append(("return %s" % executor_visitor._generate_terminal(return_command.value, scope)))
+                code.append(("return %s" % executor_visitor._generate_terminal(return_command.value, scope), ""))
             elif len(return_command.mappings) == 0:
                 code.append(("return None", ""))
             else:
@@ -365,15 +359,19 @@ class DoExecutorVisitor(ExecutorVisitor):
 
     @multimethod(IfCommand)
     def visit(self, if_command):
-        self.__ir.mark_endif()
+        self.__ir.push_if_action(if_command)
 
     @multimethod(IfCommand.ThenBlock)
     def visit(self, then_block):
-        self.__ir.push_then_block(then_block)
+        pass
 
     @multimethod(IfCommand.ElseBlock)
     def visit(self, else_block):
         self.__ir.mark_else_block()
+
+    @multimethod(IfCommand.EndIf)
+    def visit(self, end_if):
+        self.__ir.mark_endif()
 
     @multimethod(LetCommand)
     def visit(self, let_command):
