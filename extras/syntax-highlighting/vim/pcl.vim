@@ -22,6 +22,8 @@ syn match pclStateIdentifier "@\h\+"
 syn match pclStateQualifiedIdentifier "@\h\+\(\.\h\+\)\+"
 syn match pclOperators ":=\|->\|<-\|>>>\|\*\*\*\|&&&\|first\|second"
 
+syn region pclString start=/\v"/ skip=/\v\\./ end=/\v"/
+
 hi def link pclKeywords Statement
 hi def link pclStatement Statement
 hi def link pclOperators Operator
@@ -31,6 +33,7 @@ hi def link pclStateQualifiedIdentifier Debug
 hi def link pclStateIdentifier Debug
 hi def link pclImports Include
 hi def link pclComment Comment
+hi def link pclString String
 
 let b:current_syntax = "pcl"
 " Options for vi: ts=2 sw=2 sts=2 nowrap noexpandtab ft=vimi
