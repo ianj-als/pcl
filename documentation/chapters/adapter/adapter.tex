@@ -102,11 +102,110 @@ The command syntax is shown in Figure \ref{fig:imperative-pcl-command}. Each com
 \end{figure}
 
 \subsubsection{Function Calls}
+The PCL runtime functions can be used in an imperative PCL component using the following syntax shown in Figure \ref{fig:imperative-pcl-function-call}.
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=0.45]{chapters/adapter/diagrams/function_call}
+  \caption{\texttt{function\_call} : Imperative PCL function call.}
+  \label{fig:imperative-pcl-function-call}
+\end{figure}
+Functions are called using the import alias, assigned in the import statement, and the function name, e.g., \texttt{list.insert(...)}. A function call's arguments can be any one of an input signal, variable or configuration values, e.g., the call \texttt{list.cons(filename, @working.directory, extension)} constructs a list using the input signal \texttt{filename}, the configuration \texttt{working.directory}, and a variable \texttt{extension}. This list could be assigned to a variable using the following \texttt{pathname <- list.cons(filename, @working.directory, extension)}. The variable \texttt{pathname} is readable in all scopes below the current scope.
 
+Runtime functions can be written by users and should be in Python modules, i.e., a directory containing the file \texttt{\_\_init\_\_.py}. These files should contain only functions, e.g., see Figure \ref{fig:imperative-pcl-runtime-library} for an example of the runtime library \texttt{pcl.util.string}.
+\begin{figure}[h!]
+  \begin{verbatim}
+split = lambda s, ss: s.__str__().split(ss)
+
+join = lambda l, s: s.join([str(e) for e in l])
+
+lower = lambda s: s.__str__().lower()
+
+upper = lambda s: s.__str__().upper()
+  \end{verbatim}
+  \caption{\texttt{string.py}: An example of a runtime library.}
+  \label{fig:imperative-pcl-runtime-library}
+\end{figure}
+In order for PCLc to ``see'' these library modules the \texttt{PCL\_IMPORT\_PATH} environment variable must specify the directory in which these Python modules can be found.
+
+Figure \ref{fig:imperative-pcl-function-call-non-terminals} shows how the non-terminals expand in a function call.
+\begin{figure}[h!]
+  \centering
+  \begin{subfigure}[b]{0.4\textwidth}
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/function_name}
+    \caption{\texttt{function\_name} expansion}
+  \end{subfigure}
+  ~
+  \begin{subfigure}[b]{0.4\textwidth}
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/input_signal}
+    \caption{\texttt{input\_signal} expansion}
+  \end{subfigure}
+
+  \begin{subfigure}[b]{0.4\textwidth}
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/variable}
+    \caption{\texttt{variable} expansion}
+  \end{subfigure}
+  ~
+  \begin{subfigure}[b]{0.4\textwidth}
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/configuration_identifier}
+    \caption{\texttt{configuration\_identifier} expansion}
+  \end{subfigure}
+  \caption{\texttt{function\_name} \& \texttt{input\_signal} \& \texttt{variable} \& \texttt{configuration\_identifier}: Imperative PCL function call non-terminals.}
+  \label{fig:imperative-pcl-function-call-non-terminals}
+\end{figure}
 
 \subsubsection{Let Bindings}
+Let bindings allow variables to be scoped so that only the function call in the \emph{in} clause has access to them. For example, Figure \ref{fig:imperative-pcl-let-binding-example} shows a let binding which builds a new pathname for a supplied filename and working directory. Notice all input signals and configuration are accessable inside the let binding. Moreover, any assigned variables before the let binding would be accessable. All variables assigned inside the let binding are only accessable inside of the let binding. Finally, the value of the \texttt{path.join()} function is assigned to the \texttt{pathname} variable.
+\begin{figure}[h!]
+  \begin{verbatim}
+import pcl.os.path as path
+import pcl.util.list as list
+import pcl.util.string as string
+
+component pathname_creator
+  input filename
+  output filename.new
+  configuration working.directory
+  do
+    pathname <- let
+                  basename <- path.basename(filename)
+                  pieces <- path.splitext(basename)
+                  base <- list.index(pieces, 0)
+                  ext <- list.index(pieces, 1)
+                  bits <- list.cons(base, "new", ext)
+                  new_basename <- string.join(bits, ".")
+                in
+                  path.join(@working.directory, new_basename)
+
+    return filename.new <- pathname
+  \end{verbatim}
+  \caption{Let binding example}
+  \label{fig:imperative-pcl-let-binding-example}
+\end{figure}
 
 \subsubsection{If Commands}
+\emph{If} commands in imperative PCL are similar to ternary operators available in many computing languages. However, \emph{If} commands in PCL are more powerful and allow other commands to be executed from within the \texttt{then} and \texttt{else} blocks. Since all commands in imperative PCL have a value both the \texttt{then} and \texttt{else} blocks must be specified, and use the \texttt{return} keyword to create a value for when the condition is true or false. If no value is to be generated then the special \texttt{return ()} statement can be used. Otherwise, the value of a variable can be made available for assignment, e.g., Figure \ref{fig:imperative-pcl-if-example} shows an example of how to evaluate a value and not a value.
+\begin{figure}[h!]
+  \begin{verbatim}
+import pcl.os.path as path
+import pcl.util.list as list
+import pcl.util.string as string
+
+component pathname_creator
+  input filename
+  output filename.new
+  configuration working.directory
+  do
+    pathname <- if then
+
+    else
+  
+    endif
+
+    return filename.new <- pathname
+  \end{verbatim}
+  \caption{\emph{If} example}
+  \label{fig:imperative-pcl-if-example}
+\end{figure}
 
 \section{Python Wrapper}
 The Python wrappers for your programs can inhabit the same hierarchical package structure as your PCL hierarchy. This is because the PCL hierarchy mirrors the Python one\footnote{This is the reason why \texttt{\_\_init\_\_.py} files must be manually placed in directories in your PCL heirarchy which have no PCL files.}.
