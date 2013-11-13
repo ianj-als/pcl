@@ -313,6 +313,19 @@ class DoExecutorVisitor(ExecutorVisitor):
             self._write_line(DoExecutorVisitor.__INSTRUMENTATION_FUNCTION)
         self._write_line()
 
+    def _generate_terminal(self, terminal, scope = None):
+        if isinstance(terminal, StateIdentifier):
+            return "s['%s']" % terminal.identifier
+        elif scope is not None and isinstance(terminal, Identifier) and terminal in scope:
+            return self._variable_generator.lookup_name(terminal, scope)
+        elif isinstance(terminal, Identifier):
+            return "a['%s']" % terminal
+        elif isinstance(terminal, Literal):
+            return str(terminal)
+        else:
+            raise ValueError("Unexpected terminal in conditional: filename = %s, line no = %d" % \
+                             (terminal.filename, terminal.lineno))
+
     @multimethod(Module)
     def visit(self, module):
         self._module = module

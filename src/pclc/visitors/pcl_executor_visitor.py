@@ -87,6 +87,17 @@ class PCLExecutorVisitor(ExecutorVisitor):
             self._write_line(PCLExecutorVisitor.__INSTRUMENTATION_FUNCTIONS)
         self._write_line()
 
+    def _generate_terminal(self, terminal, scope = None):
+        if isinstance(terminal, StateIdentifier):
+            return "s['%s']" % terminal.identifier
+        elif isinstance(terminal, Identifier):
+            return "a['%s']" % terminal
+        elif isinstance(terminal, Literal):
+            return str(terminal)
+        else:
+            raise ValueError("Unexpected terminal in conditional: filename = %s, line no = %d" % \
+                             (terminal.filename, terminal.lineno))
+
     @multimethod(Module)
     def visit(self, module):
         self._module = module
@@ -279,7 +290,7 @@ class PCLExecutorVisitor(ExecutorVisitor):
                             for m in merge_expr.literal_mapping]
         mapping = ", ".join(top_mappings + bottom_mappings + literal_mappings)
         self._write_line("%s = cons_unsplit_wire(lambda t, b: {%s})" % \
-                         (self._get_var(merge_expr),
+                         (self._variable_generator.get_name(merge_expr),
                           mapping))
 
     @staticmethod
