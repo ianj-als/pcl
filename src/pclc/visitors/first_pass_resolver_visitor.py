@@ -813,13 +813,13 @@ class FirstPassResolverVisitor(ResolverVisitor):
         # The imports
         import_symbol_dict = self._module.resolution_symbols['imports']
 
-        # This error is a little pointless.
-        #if not import_symbol_dict.has_key(package_alias):
-        #    self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function package alias %(alias)s",
-        #                     [function],
-        #                     lambda f: {'filename' : f.filename,
-        #                                'lineno' : f.lineno,
-        #                                'alias' : package_alias})
+        # Check the package alias has been imported
+        if not import_symbol_dict.has_key(Identifier(None, -1, package_alias)):
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function package alias %(alias)s",
+                             [function],
+                             lambda f: {'filename' : f.filename,
+                                        'lineno' : f.lineno,
+                                        'alias' : package_alias})
 
         # The key for the imports is an Identifier, so create an Identifier
         # from the string package alias derived from the function call.

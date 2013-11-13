@@ -18,16 +18,13 @@
 #
 import pcl.system.process as process
 import pcl.util.list as list
-import pcl.util.string as string
 
 component sleep
   input sleep_time
   output complete
   configuration sleep_command
   do
-    cmd.list <- list.cons()
-    list.append(cmd.list, @sleep_command)
-    list.append(cmd.list, sleep_time)
-    cmd.line <- string.join(cmd.list, " ")
-    process.callAndCheck(cmd.line)
+    cmd <- list.cons(@sleep_command, sleep_time)
+    process.callAndCheck(cmd)
+
     return complete <- True

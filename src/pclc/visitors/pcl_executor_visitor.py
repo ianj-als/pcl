@@ -57,6 +57,7 @@ from parser.mappings import Mapping, \
      LiteralMapping
 from parser.module import Module
 from executor_visitor import ExecutorVisitor
+from scoped_name_generator import ScopedNameGenerator
 
 
 @multimethodclass
@@ -73,8 +74,15 @@ class PCLExecutorVisitor(ExecutorVisitor):
                                   "def ____instr_component_construction(component_decl_id, component_id, component_config, invoked_component, decl_line_no):\n" \
                                   "  print >> sys.stderr, '%s: %s: Component %s is constructing %s (id = %s) with configuration %s (%s instance declared at line %d)' % (datetime.datetime.now().strftime('%x %X.%f'), threading.current_thread().name, get_name(), component_decl_id, component_id, component_config, invoked_component, decl_line_no)\n"
 
+    __COMP_NAME_PREFIX = "____comp"
+
     def __init__(self, filename_root, is_instrumented = False):
-        ExecutorVisitor.__init__(self, filename_root, PCLExecutorVisitor.__IMPORTS, is_instrumented)
+        self.__comp_name_generator = ScopedNameGenerator(PCLExecutorVisitor.__COMP_NAME_PREFIX)
+        ExecutorVisitor.__init__(self,
+                                 filename_root,
+                                 self.__comp_name_generator,
+                                 PCLExecutorVisitor.__IMPORTS,
+                                 is_instrumented)
         if self._is_instrumented:
             self._write_line(PCLExecutorVisitor.__INSTRUMENTATION_FUNCTIONS)
         self._write_line()
@@ -85,9 +93,7 @@ class PCLExecutorVisitor(ExecutorVisitor):
 
     @multimethod(Import)
     def visit(self, an_import):
-        self._write_line("import %s as ____%s" % \
-                         (an_import.module_name, \
-                          an_import.alias))
+        self._write_line("import %s as ____%s" % (an_import.module_name, an_import.alias))
 
     @multimethod(Component)
     def visit(self, component):
@@ -195,10 +201,11 @@ class PCLExecutorVisitor(ExecutorVisitor):
         initialise_fn = [t for triple in decl_zipper for t in triple]
         # Store variables in variable table
         for decl in self._module.resolution_symbols['components']:
-            self._var_table[IdentifierExpression(None,
-                                                 0,
-                                                 decl.identifier,
-                                                 Expression(None, 0))] = str(decl.identifier)
+            self._variable_generator.register_name(IdentifierExpression(None,
+                                                                        0,
+                                                                        decl.identifier,
+                                                                        Expression(None, 0)),
+                                                   str(decl.identifier))
         self._write_function("initialise",
                              [(smt, "") for smt in initialise_fn],
                              ["config"])
@@ -209,55 +216,55 @@ class PCLExecutorVisitor(ExecutorVisitor):
 
     @multimethod(object)
     def visit(self, nowt):
-        for expr in self._var_table.keys():
+        for expr in self._variable_generator.iter_names():
             if expr.parent == None:
                 self._write_line()
-                self._write_line("return %s" % self._lookup_var(expr))
+                self._write_line("return %s" % self._variable_generator.lookup_name(expr))
                 break        
         self._object_file.close()
 
     @multimethod(UnaryExpression)
     def visit(self, unary_expr):
-        var_name = self._var_table.pop(unary_expr.expression)
-        self._var_table[unary_expr] = var_name
+        var_name = self._variable_generator.remove_name(unary_expr.expression)
+        self._variable_generator.register_name(unary_expr, var_name)
 
     @multimethod(CompositionExpression)
     def visit(self, comp_expr):
         self._write_line("%s = %s >> %s" % \
-                         (self._get_temp_var(comp_expr),
-                          self._lookup_var(comp_expr.left),
-                          self._lookup_var(comp_expr.right)))
+                         (self._variable_generator.get_name(comp_expr),
+                          self._variable_generator.lookup_name(comp_expr.left),
+                          self._variable_generator.lookup_name(comp_expr.right)))
 
     @multimethod(ParallelWithTupleExpression)
     def visit(self, para_tuple_expr):
         self._write_line("%s = %s ** %s" % \
-                         (self._get_temp_var(para_tuple_expr),
-                          self._lookup_var(para_tuple_expr.left),
-                          self._lookup_var(para_tuple_expr.right)))
+                         (self._variable_generator.get_name(para_tuple_expr),
+                          self._variable_generator.lookup_name(para_tuple_expr.left),
+                          self._variable_generator.lookup_name(para_tuple_expr.right)))
         
     @multimethod(ParallelWithScalarExpression)
     def visit(self, para_scalar_expr):
         self._write_line("%s = %s & %s" % \
-                         (self._get_temp_var(para_scalar_expr),
-                          self._lookup_var(para_scalar_expr.left),
-                          self._lookup_var(para_scalar_expr.right)))
+                         (self._variable_generator.get_name(para_scalar_expr),
+                          self._variable_generator.lookup_name(para_scalar_expr.left),
+                          self._variable_generator.lookup_name(para_scalar_expr.right)))
 
     @multimethod(FirstExpression)
     def visit(self, first_expr):
         self._write_line("%s = %s.first()" % \
-                         (self._get_temp_var(first_expr),
-                          self._lookup_var(first_expr.expression)))
+                         (self._variable_generator.get_name(first_expr),
+                          self._variable_generator.lookup_name(first_expr.expression)))
 
     @multimethod(SecondExpression)
     def visit(self, second_expr):
         self._write_line("%s = %s.second()" % \
-                         (self._get_temp_var(second_expr),
-                          self._lookup_var(second_expr.expression)))
+                         (self._variable_generator.get_name(second_expr),
+                          self._variable_generator.lookup_name(second_expr.expression)))
 
     @multimethod(SplitExpression)
     def visit(self, split_expr):
         self._write_line("%s = cons_split_wire()" % \
-                         self._get_temp_var(split_expr))
+                         self._variable_generator.get_name(split_expr))
 
     @multimethod(MergeExpression)
     def visit(self, merge_expr):
@@ -272,7 +279,7 @@ class PCLExecutorVisitor(ExecutorVisitor):
                             for m in merge_expr.literal_mapping]
         mapping = ", ".join(top_mappings + bottom_mappings + literal_mappings)
         self._write_line("%s = cons_unsplit_wire(lambda t, b: {%s})" % \
-                         (self._get_temp_var(merge_expr),
+                         (self._get_var(merge_expr),
                           mapping))
 
     @staticmethod
@@ -285,22 +292,23 @@ class PCLExecutorVisitor(ExecutorVisitor):
     
     @multimethod(WireExpression)
     def visit(self, wire_expr):
-        self._write_line("%s = %s" % (self._get_temp_var(wire_expr), PCLExecutorVisitor.__build_wire_expr(wire_expr.mapping)))
+        self._write_line("%s = %s" % (self._variable_generator.get_name(wire_expr),
+                                      PCLExecutorVisitor.__build_wire_expr(wire_expr.mapping)))
 
     @multimethod(WireTupleExpression)
     def visit(self, wire_tuple_expr):
         self._write_line("%s = %s ** %s" % \
-                         (self._get_temp_var(wire_tuple_expr),
+                         (self._variable_generator.get_name(wire_tuple_expr),
                           PCLExecutorVisitor.__build_wire_expr(wire_tuple_expr.top_mapping),
                           PCLExecutorVisitor.__build_wire_expr(wire_tuple_expr.bottom_mapping)))
 
     @multimethod(IfExpression)
     def visit(self, if_expr):
         self._write_line("%s = cons_if_component(lambda a, s: %s, %s, %s)" % \
-                         (self._get_temp_var(if_expr),
+                         (self._variable_generator.get_name(if_expr),
                           self._generate_condition(if_expr.condition),
-                          self._lookup_var(if_expr.then),
-                          self._lookup_var(if_expr.else_)))
+                          self._variable_generator.lookup_name(if_expr.then),
+                          self._variable_generator.lookup_name(if_expr.else_)))
 
     @multimethod(AndConditionalExpression)
     def visit(self, and_cond_expr):

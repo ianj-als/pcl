@@ -1,13 +1,112 @@
 \chapter{Adapting to PCL}
-Today PCL gives you a convenient way of composing pre-existing PCL component together in order to build packages of computation. To build PCL components from your existing programs a Python file is required which wraps your code. The Python contains six functions that inform PCLc about the nature of the component defined:
+Adapting pre-existing executables to PCL can be achieved in two ways, they are:
 \begin{itemize}
-\item Component's name,
-\item Input and output port specifications,
-\item Configuration and pre-processing configuration, and
-\item The component's computation.
+\item \textbf{Imperative PCL}: The PCL language supports an imperative style grammar which allows component authors to use runtime libraries to run external executables. This portion of the PCL grammar is not \emph{Turing complete} since there are no looping constructs. This feature of PCL exists to quickly initialise pre-requisites of an external executable, run the executable, post-process a result, and return the result. If it turns out your component needs a more complex pre- and post-processing, or a component cannot be, or need not be an external exectuable, the second approach can be used.
+\item \textbf{Python Wrapper}: A Python file, containing, six functions can be written that informs PCLc about the nature fo the component. Properties defined are: component's name, input and output port specifications, configuration and pre-processing configuration, and the component's computation. Since the computation of the component is described using Python, an arbitrarily complex component can be written.
 \end{itemize}
 
 Care must be taken when adapting your existing work to PCL pipelines. Threading issues and batch or on-line processing must be considered as the dynamics of your final pipeline may depend on it. Also, any state that may need to accumulate over the lifetime of a PCL component must be handled by the adaptor for your programs.
+
+\section{Imperative PCL}
+The imperative PCL language is a free-form language which allows the programmer to use arbitrary white-space to format your component definitions. Comments are a single line and should start with the \texttt{\#} and can appear at any point in a PCL file.
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale,angle=90]{chapters/adapter/diagrams/component}
+  \caption{Imperative PCL file syntax.}
+  \label{fig:imperative-pcl-top-level}
+\end{figure}
+The top level syntax of a PCL file is shown in Figure \ref{fig:imperative-pcl-top-level}, and consists of the following sections:
+\begin{itemize}
+\item \textbf{Imports}: Imports can be optionally specified. The imports here are PCL runtime libraries. These are written in Python and are modules which contain functions. Imports must specify an alias and this is use to call the functions, e.g., \texttt{list.insert(...)}.
+\item \textbf{Component}: This starts the component definition and provides the name. The component's name must be the same as the filename. E.g., a component in \texttt{fred.pcl} must be called \texttt{fred}.
+\item \textbf{Inputs}: Defines the inputs of the component. This information is used to verify that the outputs of a previous component is compatible with another. Only \emph{one} input port can be defined.
+\item \textbf{Outputs}: Defines the outputs of the component. This information is used to verify that the inputs of a subsequent component is compatible with another. Only \emph{one} output port can be defined.
+\item \textbf{Configuration}: Optional configuration for the component. This is static data that shall be used to construct imported components used in this component. 
+\item \textbf{Commands}: This portion is the component definition. It is a list of commands which are executed in order from top to bottom.
+\end{itemize}
+
+An example imperative PCL file can be seen in Figure \ref{fig:imperative-pcl-example}. This example can be found in the \texttt{parallel\_sleep} example in the PCL Git repository.
+\begin{figure}[h!]
+  \begin{verbatim}
+import pcl.system.process as process
+import pcl.util.list as list
+
+component sleep
+  input sleep_time
+  output complete
+  configuration sleep_command
+  do
+    cmd <- list.cons(@sleep_command, sleep_time)
+    process.callAndCheck(cmd)
+
+    return complete <- True
+  \end{verbatim}
+  \caption{Example imperative PCL file.}
+  \label{fig:imperative-pcl-example}
+\end{figure}
+
+\subsection{Imports}
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/imports}
+  \caption{\texttt{imports} : Importing PCL runtime functions.}
+  \label{fig:imperative-pcl-imports}
+\end{figure}
+Imperative PCL files can use runtime library functions to import functionality. These runtime libraries are Python files which contain functions. The names of functions are the name of the function in PCL. Figure \ref{fig:imperative-pcl-imports} shows the syntax for importing. The environment variable \texttt{PCL\_IMPORT\_PATH} is a colon separated list of directories from which a search shall take place for the PCL runtime libraries. If this environment variable is not set then the current working directory is used as a starting point for the component search.
+
+Each imported component must specify an alias. This is the name by which this component shall be referred to in this PCL file. E.g., \texttt{import pcl.util.list as list} shall import a PCL runtime library called \texttt{list} from the package \texttt{pcl.util} and shall be refereed to as, i.e. has the alias, \texttt{list}.
+
+Figure \ref{fig:imperative-pcl-import-non-terminals} shows how the non-terminals expand in the import syntax.
+\begin{figure}[h!]
+  \centering
+  \begin{subfigure}[b]{0.4\textwidth}
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/pcl_module}
+    \caption{\texttt{pcl\_module} expansion}
+  \end{subfigure}
+  ~
+  \begin{subfigure}[b]{0.4\textwidth}
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/pcl_module_alias}
+    \caption{\texttt{pcl\_module\_alias} expansion}
+  \end{subfigure}
+  \caption{\texttt{pcl\_module} \& \texttt{pcl\_module\_alias} : Imperative import PCL non-terminals.}
+  \label{fig:imperative-pcl-import-non-terminals}
+\end{figure}
+
+\subsection{Port Definition}
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/port_definition}
+  \caption{\texttt{port\_definition} : Imperative PCL port definition.}
+  \label{fig:imperative-pcl-port-def}
+\end{figure}
+A port definition informs the PCL compiler about the nature of a component's input or an output. Components defined with imperative PCL can only have one input and one output port. Figure \ref{fig:pcl-port-def} shows the syntax for this grammatical construct.
+
+Again, ports carry one or more \emph{signals}. A signal is a piece of data that flows through ports and has a unique name to that port, and can be fully qualified. The signal names, for a port, are declared in a port definition. Signal names are read-only.
+
+\subsection{Configuration}
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/configuration}
+  \caption{\texttt{configuration} : Imperative PCL configuration.}
+  \label{fig:imperative-pcl-config}
+\end{figure}
+A component's configuration is static and read-only data. Configuration data is named using identifiers, which can be fully qualified. Figure \ref{fig:imperative-pcl-config} shows the configuration syntax. Configuration identifiers may be used at any point where a variable, or input signal name can be used, e.g., and \emph{if} command, or function call. In imperative PCL zero or more configuration identifiers can be declared.
+
+\subsection{Commands}
+The command syntax is shown in Figure \ref{fig:imperative-pcl-command}. Each command yields a value which can, optionally, be assign to a write-once ``variable''. 
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=0.45,angle=90]{chapters/adapter/diagrams/command}
+  \caption{\texttt{command} : Imperative PCL commmands.}
+  \label{fig:imperative-pcl-command}
+\end{figure}
+
+\subsubsection{Function Calls}
+
+
+\subsubsection{Let Bindings}
+
+\subsubsection{If Commands}
 
 \section{Python Wrapper}
 The Python wrappers for your programs can inhabit the same hierarchical package structure as your PCL hierarchy. This is because the PCL hierarchy mirrors the Python one\footnote{This is the reason why \texttt{\_\_init\_\_.py} files must be manually placed in directories in your PCL heirarchy which have no PCL files.}.
@@ -90,7 +189,4 @@ def initialise(config):
 \caption{\texttt{sleep.py}: An example Python wrapper for PCL.}
 \label{fig:python-wrapper}
 \end{figure}
-This wrapper if used in the \texttt{parallel\_sleep} example PCL which can be found in \texttt{examples/parallel\_sleep} directory of your Git clone.
-
-\section{Future Work}
-It is envisaged that the PCL syntax will be extended in order that these ``bottom level'' PCL components can be defined in PCL. This will no longer require that these components be defined in Python wrappers. However, this is for v2!
+This wrapper is the Python implementation of the imperative PCL \texttt{sleep} component shown in Figure \ref{fig:imperative-pcl-example}.

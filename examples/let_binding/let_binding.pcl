@@ -7,7 +7,8 @@ component let_binding
   output filename.new
   configuration working.directory
   do
-    # Create the pathname of the re-encoded corpus
+    basename <- list.cons()
+    # Create the new pathname
     result <- let
                 basename <- path.basename(filename)
                 pieces <- path.splitext(basename)

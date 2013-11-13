@@ -1,0 +1,44 @@
+component ::= imports? 'component' identifier ('input' | 'inputs') port_definition ('output' | 'outputs') port_definition configuration? 'do' (command)* return_output
+
+
+imports ::= (('import' pcl_module 'as' pcl_module_alias) ('import' pcl_module 'as' pcl_module_alias)*)
+
+pcl_module ::= any_identifier
+
+pcl_module_alias ::= identifier
+
+
+port_definition ::= ((identifier | qualified_identifier) (',' (identifier | qualified_identifier))*)
+
+
+configuration ::= 'configuration' ((identifier | qualified_identifier) (',' (identifier | qualified_identifier))*)
+
+
+command ::= ((variable '<-')? function_call) | (variable '<-')? 'let' ((variable '<-' function_call) (variable '<-' function_call)*) 'in' function_call | (variable '<-')? 'if' condition_expression 'then' ((command)*)? return 'else' ((command)*)? return 'endif'
+
+function_call ::= pcl_module_alias '.' function_name '(' (((input_signal | variable | configuration_identifier) (',' (input_signal | variable | configuration_identifier))*))? ')'
+
+return_output ::= 'return' ((output_signal '<-' (input_signal | variable | literal)) (',' (output_signal '<-' (input_signal | variable | literal)))*)
+
+return ::= 'return' ('()' | input_signal | variable | configuration_identifier)
+
+function_name ::= identifier
+
+variable ::= any_identifier
+
+input_signal ::= any_identifier
+
+output_signal ::= any_identifier
+
+
+condition_expression ::= condition_expression ('or' | 'and' | 'xor' | '==' | '!=' | '>' | '<' | '>=' | '<=') condition_expression | (input_signal | variable | configuration_identifier | literal) | '(' condition_expression ')'
+
+any_identifier ::= identifier | qualified_identifier
+
+configuration_identifier ::= '@' any_identifier
+
+qualified_identifier ::= [a-zA-Z_][a-zA-Z0-9_]*('.'[a-zA-Z_][a-zA-Z0-9_]*)+
+
+identifier ::= [a-zA-Z_][a-zA-Z0-9_]*
+
+literal ::= [-]?[0-9]+('.'[0-9]+([eE][-+]?[0-9]+)?)? | '"' ('\'.|[^"])* '"' | [Tt][Rr][Uu][Ee] | [Ff][Aa][Ll][Ss][Ee]

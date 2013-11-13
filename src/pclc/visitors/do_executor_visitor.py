@@ -38,6 +38,7 @@ from parser.conditional_expressions import ConditionalExpression, \
      UnaryConditionalExpression, \
      TerminalConditionalExpression
 from parser.expressions import StateIdentifier, Identifier, Literal
+from scoped_name_generator import ScopedNameGenerator
 
 
 class IntermediateRepresentation(object):
@@ -96,15 +97,14 @@ class IntermediateRepresentation(object):
             if isinstance(node.object, Command):
                 self.bindings.append(node)
 
-    __TEMP_FUNC_FMT = "____func_%d"
 
-    def __init__(self):
+    def __init__(self, variable_name_generator, function_name_generator):
         self.__root = list()
         self.__current_node = None
         self.__current_if = None
         self.__current_let = None
-        self.__func_table = dict()
-        self.__func_no = 0
+        self.__var_name_generator = variable_name_generator
+        self.__func_name_generator = function_name_generator
 
     def __add_node(self, node, update_current_node = True):
         if node.parent is None:
@@ -152,7 +152,7 @@ class IntermediateRepresentation(object):
         generate_func_args = lambda args, scope: ", ".join([executor_visitor._generate_terminal(a, scope) for a in args])
         generate_func_call = lambda f, scope: "____%s(%s)" % (f.name, generate_func_args(f.arguments, scope))
 
-        top_function_name = self.__get_function_name(executor_visitor._module.definition.identifier)
+        top_function_name = self.__func_name_generator.get_name(executor_visitor._module.definition.identifier)
         code = [("def %s(a, s):" % top_function_name, "+")]
         for node in self.__root:
             code.extend(self.__generate_code(node,
@@ -173,23 +173,28 @@ class IntermediateRepresentation(object):
             scope = function['scope']
 
             if is_instrumented:
-                code.append(("____instr_command_begin('%s', %d, '%s', a, s)" % (function.filename, function.lineno, function), ""))
+                code.append(("____instr_command_begin('%s', %d, '%s', a, s)" % (function.filename, function.lineno, function),
+                             ""))
 
-            tmp_var = executor_visitor._get_temp_var(function)
-            code.append(("%s = %s" % (tmp_var,
-                                      generate_function_call(function, scope)), ""))
-            code.append(("return %s" % tmp_var, ""))
+            tmp_var = self.__var_name_generator.get_name(function, scope)
+            code.append(("%s = %s" % (tmp_var, generate_function_call(function, scope)),
+                         ""))
+            code.append(("return %s" % tmp_var,
+                         ""))
         elif isinstance(node, IntermediateRepresentation.IRCommandNode):
             # Command action code generation
             command = node.object
             scope = command['scope']
 
-            code.append(("def %s(a, s):" % self.__get_function_name(command), "+"))
+            code.append(("def %s(a, s):" % self.__func_name_generator.get_name(command),
+                         "+"))
             if command.identifier:
-                code.append(("%s = %s" % (executor_visitor._get_temp_var(command.identifier), \
-                                          generate_function_call(command.function, scope)), ""))
+                code.append(("%s = %s" % (self.__var_name_generator.get_name(command.identifier, scope), \
+                                          generate_function_call(command.function, scope)),
+                             ""))
             else:
-                code.append((generate_function_call(command.function, scope), ""))
+                code.append((generate_function_call(command.function, scope),
+                             ""))
 
             for child in node.children:
                 more_code = self.__generate_code(child,
@@ -200,20 +205,25 @@ class IntermediateRepresentation(object):
 
             code.append((None, "-"))
             if is_instrumented:
-                value_var = executor_visitor._get_temp_var(command)
-                code.append(("____instr_command_begin('%s', %d, '%s', a, s)" % (command.filename, command.lineno, command), ""))
-                code.append(("%s = %s(a, s)" % (value_var,
-                                                self.__lookup_function_name(command)), ""))
-                code.append(("return %s" % value_var, ""))
+                value_var = self.__var_name_generator.get_name(command, scope)
+                code.append(("____instr_command_begin('%s', %d, '%s', a, s)" % (command.filename, command.lineno, command),
+                             ""))
+                code.append(("%s = %s(a, s)" % (value_var, self.__func_name_generator.lookup_name(command)),
+                             ""))
+                code.append(("return %s" % value_var,
+                             ""))
             else:
-                code.append(("return %s(a, s)" % self.__lookup_function_name(command), ""))
+                code.append(("return %s(a, s)" % self.__func_name_generator.lookup_name(command),
+                             ""))
         elif isinstance(node, IntermediateRepresentation.IRIfNode):
             # If command action code generation
             if_command = node.object
             scope = if_command['scope']
 
-            code.append(("def %s(a, s):" % self.__get_function_name(if_command), "+"))
-            code.append(("if %s:" % executor_visitor._generate_condition(if_command.condition, scope), "+"))
+            code.append(("def %s(a, s):" % self.__func_name_generator.get_name(if_command),
+                         "+"))
+            code.append(("if %s:" % executor_visitor._generate_condition(if_command.condition, scope),
+                         "+"))
 
             for then_node in node.then_block:
                 more_code = self.__generate_code(then_node,
@@ -233,27 +243,34 @@ class IntermediateRepresentation(object):
 
             code.extend([(None, "-"), (None, "-")])
             if if_command.identifier:
-                code.append(("%s = %s(a, s)" % (executor_visitor._get_temp_var(if_command.identifier), \
-                                                self.__lookup_function_name(if_command)), ""))
+                code.append(("%s = %s(a, s)" % (self.__var_name_generator.get_name(if_command.identifier, scope), \
+                                                self.__func_name_generator.lookup_name(if_command)),
+                             ""))
             else:
-                code.append(("%s(a, s)" % self.__lookup_function_name(if_command), ""))
+                code.append(("%s(a, s)" % self.__func_name_generator.lookup_name(if_command),
+                             ""))
         elif isinstance(node, IntermediateRepresentation.IRReturnNode):
             return_command = node.object
             scope = return_command['scope']
 
             if return_command.value:
-                code.append(("return %s" % executor_visitor._generate_terminal(return_command.value, scope), ""))
+                code.append(("return %s" % executor_visitor._generate_terminal(return_command.value, scope),
+                             ""))
             elif len(return_command.mappings) == 0:
-                code.append(("return None", ""))
+                code.append(("return None",
+                             ""))
             else:
                 code.append(("return {%s}" % ", ".join(["'%s' : %s" % \
                                                         (m.to, executor_visitor._generate_terminal(m.from_, scope)) \
-                                                        for m in return_command.mappings]), ""))
+                                                        for m in return_command.mappings]),
+                             ""))
         elif isinstance(node, IntermediateRepresentation.IRLetNode):
             # Let command
             let_command = node.object
+            scope = let_command['scope']
 
-            code.append(("def %s(a, s):" % self.__get_function_name(let_command), "+"))
+            code.append(("def %s(a, s):" % self.__func_name_generator.get_name(let_command),
+                         "+"))
 
             for binding in node.bindings:
                 more_code = self.__generate_code(binding,
@@ -264,21 +281,14 @@ class IntermediateRepresentation(object):
 
             code.append((None, "-"))
             if let_command.identifier:
-                code.append(("%s = %s(a, s)" % (executor_visitor._get_temp_var(let_command.identifier), \
-                                                self.__lookup_function_name(let_command)), ""))
+                code.append(("%s = %s(a, s)" % (self.__var_name_generator.get_name(let_command.identifier, scope), \
+                                                self.__func_name_generator.lookup_name(let_command)),
+                             ""))
             else:
-                code.append(("%s(a, s)" % self.__lookup_function_name(let_command), ""))
+                code.append(("%s(a, s)" % self.__func_name_generator.lookup_name(let_command),
+                             ""))
 
         return code
-
-    def __get_function_name(self, function):
-        func_name = IntermediateRepresentation.__TEMP_FUNC_FMT % self.__func_no
-        self.__func_table[function] = func_name
-        self.__func_no += 1
-        return func_name
-
-    def __lookup_function_name(self, function):
-        return self.__func_table[function]
 
 
 @multimethodclass
@@ -287,11 +297,18 @@ class DoExecutorVisitor(ExecutorVisitor):
                                  "def ____instr_command_begin(filename, lineno, cmd_type, a, s):\n" \
                                  "  print >> sys.stderr, '%s: %s: Component %s begining %s, at line %d (%s), with input %s and state %s' % (datetime.datetime.now().strftime('%x %X.%f'), threading.current_thread().name, get_name(), cmd_type, lineno, filename, a, {skey : s[skey] for skey in filter(lambda k: k != '____prev_', s.keys())})\n"
 
+    __VAR_NAME_PREFIX = "____tmp"
+    __FUNC_NAME_PREFIX = "____func"
+
     def __init__(self, filename_root, is_instrumented):
-        ExecutorVisitor.__init__(self, filename_root, "", is_instrumented)
-        self.__ir = IntermediateRepresentation()
-        self.__func_no = 0
-        self.__func_table = dict()
+        var_name_generator = ScopedNameGenerator(DoExecutorVisitor.__VAR_NAME_PREFIX)
+        ExecutorVisitor.__init__(self,
+                                 filename_root,
+                                 var_name_generator,
+                                 "",
+                                 is_instrumented)
+        self.__func_name_generator = ScopedNameGenerator(DoExecutorVisitor.__FUNC_NAME_PREFIX)
+        self.__ir = IntermediateRepresentation(var_name_generator, self.__func_name_generator)
         if self._is_instrumented:
             self._write_line(DoExecutorVisitor.__INSTRUMENTATION_FUNCTION)
         self._write_line()
@@ -312,19 +329,16 @@ class DoExecutorVisitor(ExecutorVisitor):
         self._write_line()
         self._write_line()
         self._write_function("get_name",
-                             [("return '%s'" % \
-                               component.identifier,
+                             [("return '%s'" % component.identifier,
                                "")])
 
         # The get inputs function
         self._write_function("get_inputs",
-                             "return %s" % \
-                             type_formatting_fn(component.inputs))
+                             "return %s" %  type_formatting_fn(component.inputs))
 
         # The get outputs function
         self._write_function("get_outputs",
-                             "return %s" % \
-                             type_formatting_fn(component.outputs))
+                             "return %s" % type_formatting_fn(component.outputs))
 
         # The get configuration function
         self._write_function("get_configuration",
