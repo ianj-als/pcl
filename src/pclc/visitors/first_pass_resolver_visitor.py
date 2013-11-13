@@ -939,6 +939,29 @@ class FirstPassResolverVisitor(ResolverVisitor):
         # Record the current scope in the entity's resolution symbols
         ret['scope'] = self._current_scope
 
+        if ret.value:
+            if isinstance(ret.value, StateIdentifier):
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown configuration in return %(unknown)s",
+                                 [ret.value] if ret.value not in self._module.resolution_symbols['configuration'] else [],
+                                 lambda v: {'filename' : v.filename,
+                                            'lineno' : v.lineno,
+                                            'unknown' : str(ret.value)})
+            elif isinstance(ret.value, Identifier):
+                if ret.value in self._module.definition.outputs:
+                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, output signal used in return %(unknown)s",
+                                     [ret.value],
+                                     lambda v: {'filename' : v.filename,
+                                                'lineno' : v.lineno,
+                                                'unknown' : str(ret.value)})
+                else:
+                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown variable in return %(unknown)s",
+                                     [ret.value] if ret.value not in self._current_scope and \
+                                     ret.value not in self._module.definition.inputs else [],
+                                     lambda v: {'filename' : v.filename,
+                                                'lineno' : v.lineno,
+                                                'unknown' : str(ret.value)})
+                
+
         if not ret.mappings:
             return
 

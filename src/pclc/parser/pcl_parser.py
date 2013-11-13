@@ -457,9 +457,10 @@ def p_function_arg(p):
 
 def p_return_command(p):
     '''return_command : RETURN '(' ')'
-                      | RETURN function_arg'''
+                      | RETURN function_arg
+                      | RETURN literal'''
     if len(p) > 3:
-        p[0] = Return(p.parser.filename, -1)
+        p[0] = Return(p.parser.filename, p.lineno(1))
     else:
         p[0] = Return(p.parser.filename, p.lineno(1), p[2])
 
