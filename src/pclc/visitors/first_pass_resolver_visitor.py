@@ -955,8 +955,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                                 'unknown' : str(ret.value)})
                 else:
                     self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown variable in return %(unknown)s",
-                                     [ret.value] if ret.value not in self._current_scope and \
-                                     ret.value not in self._module.definition.inputs else [],
+                                     [ret.value] if ret.value not in self._current_scope else [],
                                      lambda v: {'filename' : v.filename,
                                                 'lineno' : v.lineno,
                                                 'unknown' : str(ret.value)})
