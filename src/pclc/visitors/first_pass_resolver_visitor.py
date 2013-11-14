@@ -990,7 +990,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                     'duplicate' : str(t)})
 
         # Missing 'to' maps
-        self._add_errors("ERROR: %(filename)s at line %(lineno)d, missing output in return %(missing)s",
+        self._add_errors("ERROR: %(filename)s at line %(lineno)d, defined output is missing in return %(missing)s",
                          frozenset(self._module.definition.outputs) - frozenset(duplicate_to.keys()),
                          lambda t: {'filename' : t.filename,
                                     'lineno' : t.lineno,
