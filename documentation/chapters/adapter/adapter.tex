@@ -1,8 +1,8 @@
 \chapter{Adapting to PCL}
 Adapting pre-existing executables to PCL can be achieved in two ways, they are:
 \begin{itemize}
-\item \textbf{Imperative PCL}: The PCL language supports an imperative style grammar which allows component authors to use runtime libraries to run external executables. This portion of the PCL grammar is not \emph{Turing complete} since there are no looping constructs. This feature of PCL exists to quickly initialise pre-requisites of an external executable, run the executable, post-process a result, and return the result. If it turns out your component needs a more complex pre- and post-processing, or a component cannot be, or need not be an external exectuable, the second approach can be used.
-\item \textbf{Python Wrapper}: A Python file, containing, six functions can be written that informs PCLc about the nature fo the component. Properties defined are: component's name, input and output port specifications, configuration and pre-processing configuration, and the component's computation. Since the computation of the component is described using Python, an arbitrarily complex component can be written.
+\item \textbf{Imperative PCL}: The PCL language supports an imperative style grammar which allows component authors to use runtime libraries to run external executables. This portion of the PCL grammar is not \emph{Turing complete} since there are no looping constructs. This feature of PCL exists to quickly initialise pre-requisites of an external executable, run the executable, post-process a result, and return the result. If it turns out your component needs a more complex pre- and post-processing, or a component cannot be, or need not be an external executable, the second approach can be used.
+\item \textbf{Python Wrapper}: A Python file, containing, six functions can be written that informs PCLc about the nature of the component. Properties defined are: component's name, input and output port specifications, configuration and pre-processing configuration, and the component's computation. Since the computation of the component is described using Python, an arbitrarily complex component can be written.
 \end{itemize}
 
 Care must be taken when adapting your existing work to PCL pipelines. Threading issues and batch or on-line processing must be considered as the dynamics of your final pipeline may depend on it. Also, any state that may need to accumulate over the lifetime of a PCL component must be handled by the adaptor for your programs.
@@ -92,6 +92,8 @@ Again, ports carry one or more \emph{signals}. A signal is a piece of data that 
 \end{figure}
 A component's configuration is static and read-only data. Configuration data is named using identifiers, which can be fully qualified. Figure \ref{fig:imperative-pcl-config} shows the configuration syntax. Configuration identifiers may be used at any point where a variable, or input signal name can be used, e.g., and \emph{if} command, or function call. In imperative PCL zero or more configuration identifiers can be declared.
 
+\clearpage
+
 \subsection{Commands}
 The command syntax is shown in Figure \ref{fig:imperative-pcl-command}. Each command yields a value which can, optionally, be assign to a write-once ``variable''. 
 \begin{figure}[h!]
@@ -153,8 +155,10 @@ Figure \ref{fig:imperative-pcl-function-call-non-terminals} shows how the non-te
   \label{fig:imperative-pcl-function-call-non-terminals}
 \end{figure}
 
+\clearpage
+
 \subsubsection{Let Bindings}
-Let bindings allow variables to be scoped so that only the function call in the \emph{in} clause has access to them. For example, Figure \ref{fig:imperative-pcl-let-binding-example} shows a let binding which builds a new pathname for a supplied filename and working directory. Notice all input signals and configuration are accessable inside the let binding. Moreover, any assigned variables before the let binding would be accessable. All variables assigned inside the let binding are only accessable inside of the let binding. Finally, the value of the \texttt{path.join()} function is assigned to the \texttt{pathname} variable.
+Let bindings allow variables to be scoped so that only the function call in the \emph{in} clause has access to them. For example, Figure \ref{fig:imperative-pcl-let-binding-example} shows a let binding which builds a new pathname for a supplied filename and working directory. Notice all input signals and configuration are accessible inside the let binding. Moreover, any assigned variables before the let binding would be accessible. All variables assigned inside the let binding are only accessible inside of the let binding. Finally, the value of the \texttt{path.join()} function is assigned to the \texttt{pathname} variable.
 \begin{figure}[h!]
   \begin{verbatim}
 import pcl.os.path as path
@@ -182,23 +186,39 @@ component pathname_creator
   \label{fig:imperative-pcl-let-binding-example}
 \end{figure}
 
+\clearpage
+
 \subsubsection{If Commands}
-\emph{If} commands in imperative PCL are similar to ternary operators available in many computing languages. However, \emph{If} commands in PCL are more powerful and allow other commands to be executed from within the \texttt{then} and \texttt{else} blocks. Since all commands in imperative PCL have a value both the \texttt{then} and \texttt{else} blocks must be specified, and use the \texttt{return} keyword to create a value for when the condition is true or false. If no value is to be generated then the special \texttt{return ()} statement can be used. Otherwise, the value of a variable can be made available for assignment, e.g., Figure \ref{fig:imperative-pcl-if-example} shows an example of how to evaluate a value and not a value.
+\emph{If} commands in imperative PCL are similar to ternary operators available in many computing languages. However, \emph{If} commands in PCL are more powerful and allow other commands to be executed from within the \texttt{then} and \texttt{else} blocks. Since all commands in imperative PCL have a value both the \texttt{then} and \texttt{else} blocks must be specified, and use the \texttt{return} keyword to create a value for when the condition is true or false. If no value is to be generated then the special \texttt{return ()} statement can be used. The syntax for the return constructed is shown in Figure \ref{fig:imperative-pcl-if-return}.
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/return}
+  \caption{\texttt{return} : Imperative PCL \emph{If} evaluations.}
+  \label{fig:imperative-pcl-if-return}
+\end{figure}
+
+The \texttt{return} command does \emph{not} have the same semantics as return in other imperative languages. In imperative PCL, \texttt{return} is used to create a value that shall become the ``value'' of the \emph{If} command.
+
+Otherwise, the value of a variable can be made available for assignment, e.g., Figure \ref{fig:imperative-pcl-if-example} shows an example of how to evaluate a value and \emph{null} value.
 \begin{figure}[h!]
   \begin{verbatim}
 import pcl.os.path as path
 import pcl.util.list as list
-import pcl.util.string as string
 
 component pathname_creator
   input filename
   output filename.new
   configuration working.directory
   do
-    pathname <- if then
+    working.directory.exists <- path.exists(@working.directory)
 
+    # If the working directory exists create a pathname
+    # using the working directory.
+    pathname <- if working.directory.exists == True then
+      pathname <- path.join(@working.directory, filename)
+      return pathname
     else
-  
+      return ()
     endif
 
     return filename.new <- pathname
@@ -206,13 +226,76 @@ component pathname_creator
   \caption{\emph{If} example}
   \label{fig:imperative-pcl-if-example}
 \end{figure}
+The syntax for the the \emph{If}'s condition is shown in Figure \ref{fig:imperative-pcl-if-condition}.
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/condition_expression}
+  \caption{\texttt{condition\_expression} : Imperative PCL \emph{If} evaluations.}
+  \label{fig:imperative-pcl-if-condition}
+\end{figure}
+
+\clearpage
+
+\subsection{Return Output}
+A PCL component must produce signals on its output port. To do this a mapping is created that uses input signals, variables, or literals and assigns these values to output signals, as shown in Figure \ref{fig:imperative-pcl-return-output}.
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/return_output}
+  \caption{\texttt{return\_output} : Imperative PCL returning component's output.}
+  \label{fig:imperative-pcl-return-output}
+\end{figure}
+
+The output signal is defined as shown in Figure \ref{fig:imperative-pcl-return-output-signal}.
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/output_signal}
+  \caption{\texttt{output\_signal} : Imperative PCL creating output signals.}
+  \label{fig:imperative-pcl-return-output-signal}
+\end{figure}
+
+\clearpage
+
+\subsection{Miscellaneous Constructs}
+Figures \ref{fig:imperative-pcl-misc} and \ref{fig:imperative-pcl-literal} show the remaining undefined imperative PCL constructs that were used in the previous sections.
+\begin{figure}[h!]
+  \centering
+ \begin{subfigure}[b]{0.4\textwidth}
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/signal_name}
+    \caption{\texttt{signal\_name} expansion}
+  \end{subfigure}
+  ~
+  \begin{subfigure}[b]{0.4\textwidth}
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/identifier}
+    \caption{\texttt{identifier} expansion}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{0.9\textwidth}
+    \includegraphics[scale=0.5]{chapters/adapter/diagrams/qualified_identifier}
+    \caption{\texttt{qualified\_identifier} expansion}
+  \end{subfigure}
+
+   \begin{subfigure}[b]{0.4\textwidth}
+    \includegraphics[scale=\DiagramScale]{chapters/adapter/diagrams/any_identifier}
+    \caption{\texttt{any\_identifier} expansion}
+  \end{subfigure}
+  \caption{\texttt{signal\_name} \& \texttt{identifier} \& \texttt{qualified\_identifier} \& \texttt{any\_identifier}: Imperative PCL miscellaneous non-terminals.}
+  \label{fig:imperative-pcl-misc}
+\end{figure}
+\begin{figure}[h!]
+  \centering
+    \includegraphics[scale=\DiagramScale,angle=90]{chapters/adapter/diagrams/literal}
+  \caption{\texttt{literal} expansion.}
+  \label{fig:imperative-pcl-literal}
+\end{figure}
+
+\clearpage
 
 \section{Python Wrapper}
-The Python wrappers for your programs can inhabit the same hierarchical package structure as your PCL hierarchy. This is because the PCL hierarchy mirrors the Python one\footnote{This is the reason why \texttt{\_\_init\_\_.py} files must be manually placed in directories in your PCL heirarchy which have no PCL files.}.
+The Python wrappers for your programs can inhabit the same hierarchical package structure as your PCL hierarchy. This is because the PCL hierarchy mirrors the Python one\footnote{This is the reason why \texttt{\_\_init\_\_.py} files must be manually placed in directories in your PCL hierarchy which have no PCL files.}.
 
 Six functions are required in your Python wrapper, they are:
 \begin{itemize}
-\item \texttt{get\_name()}: Returns an object representing the name of the component. The \texttt{\_\_str\_\_()} function should be implemented to return a meaninful name. E.g.,
+\item \texttt{get\_name()}: Returns an object representing the name of the component. The \texttt{\_\_str\_\_()} function should be implemented to return a meaningful name. E.g.,
 \begin{verbatim}
 def get_name():
   return 'tokenisation'
