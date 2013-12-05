@@ -24,7 +24,13 @@ from executor_visitor import ExecutorVisitor
 from parser.import_spec import Import
 from parser.module import Module
 from parser.component import Component
-from parser.command import Function, Command, Return, IfCommand, LetCommand
+from parser.command import Assignment, \
+     Function, \
+     Command, \
+     Return, \
+     IfCommand, \
+     LetCommand, \
+     MapCommand
 from parser.conditional_expressions import ConditionalExpression, \
      AndConditionalExpression, \
      OrConditionalExpression, \
@@ -97,12 +103,21 @@ class IntermediateRepresentation(object):
             if isinstance(node.object, Command):
                 self.bindings.append(node)
 
+    class IRMapNode(IRNode):
+        def __init__(self, pt_object, parent):
+            IntermediateRepresentation.IRNode.__init__(self, pt_object, parent)
+            self.commands = list()
+
+        def add_child(self, node):
+            self.commands.append(node)
+
 
     def __init__(self, variable_name_generator, function_name_generator):
         self.__root = list()
         self.__current_node = None
-        self.__current_if = None
+        self.__if_stack = list()
         self.__current_let = None
+        self.__map_stack = list()
         self.__var_name_generator = variable_name_generator
         self.__func_name_generator = function_name_generator
 
@@ -122,15 +137,15 @@ class IntermediateRepresentation(object):
     def push_if_action(self, if_command):
         node = IntermediateRepresentation.IRIfNode(if_command, self.__current_node)
         self.__add_node(node)
-        self.__current_if = node
+        self.__if_stack.append(node)
 
     def mark_else_block(self):
-        self.__current_if.switch_to_else_block()
-        self.__current_node = self.__current_if
+        current_if = self.__if_stack[-1]
+        current_if.switch_to_else_block()
+        self.__current_node = current_if
 
     def mark_endif(self):
-        self.__current_node = self.__current_if.parent
-        self.__current_if = None
+        self.__current_node = self.__if_stack.pop().parent
 
     def push_return_action(self, return_command):
         node = IntermediateRepresentation.IRReturnNode(return_command, self.__current_node)
@@ -147,10 +162,19 @@ class IntermediateRepresentation(object):
         self.__current_node = self.__current_let.parent
         self.__current_let = None
 
+    def push_map_action(self, map_command):
+        node = IntermediateRepresentation.IRMapNode(map_command, self.__current_node)
+        self.__add_node(node)
+        self.__map_stack.append(node)
+
+    def mark_map_end(self):
+        self.__current_node = self.__map_stack.pop().parent
+
     def generate_code(self, executor_visitor, is_instrumented):
         # Generate function call lambdas
         generate_func_args = lambda args, scope: ", ".join([executor_visitor._generate_terminal(a, scope) for a in args])
-        generate_func_call = lambda f, scope: "____%s(%s)" % (f.name, generate_func_args(f.arguments, scope))
+        generate_func_call = lambda f, scope: "____%s(%s)" % (f.get_qualified_name(), \
+                                                              generate_func_args(f.arguments, scope))
 
         top_function_name = self.__func_name_generator.get_name(executor_visitor._module.definition.identifier)
         code = [("def %s(a, s):" % top_function_name, "+")]
@@ -188,8 +212,8 @@ class IntermediateRepresentation(object):
 
             code.append(("def %s(a, s):" % self.__func_name_generator.get_name(command),
                          "+"))
-            if command.identifier:
-                code.append(("%s = %s" % (self.__var_name_generator.get_name(command.identifier, scope), \
+            if command.assignment:
+                code.append(("%s = %s" % (self.__var_name_generator.get_name(command.assignment.identifier, scope), \
                                           generate_function_call(command.function, scope)),
                              ""))
             else:
@@ -242,8 +266,9 @@ class IntermediateRepresentation(object):
                 code.extend(more_code)
 
             code.extend([(None, "-"), (None, "-")])
-            if if_command.identifier:
-                code.append(("%s = %s(a, s)" % (self.__var_name_generator.get_name(if_command.identifier, scope), \
+            if if_command.assignment:
+                code.append(("%s = %s(a, s)" % (self.__var_name_generator.get_name(if_command.assignment.identifier,
+                                                                                   scope), \
                                                 self.__func_name_generator.lookup_name(if_command)),
                              ""))
             else:
@@ -280,12 +305,43 @@ class IntermediateRepresentation(object):
                 code.extend(more_code)
 
             code.append((None, "-"))
-            if let_command.identifier:
-                code.append(("%s = %s(a, s)" % (self.__var_name_generator.get_name(let_command.identifier, scope), \
+            if let_command.assignment:
+                code.append(("%s = %s(a, s)" % (self.__var_name_generator.get_name(let_command.assignment.identifier, scope), \
                                                 self.__func_name_generator.lookup_name(let_command)),
                              ""))
             else:
                 code.append(("%s(a, s)" % self.__func_name_generator.lookup_name(let_command),
+                             ""))
+        elif isinstance(node, IntermediateRepresentation.IRMapNode):
+            map_command = node.object
+            scope = map_command['scope']
+
+            code.append(("def %s(a, s):" % self.__func_name_generator.get_name(map_command),
+                         "+"))
+
+            code.append(("def %s(%s):" % (self.__func_name_generator.get_name(map_command.mapped_identifier), \
+                                          self.__var_name_generator.get_name(map_command.mapped_identifier, node.commands[0].object['scope'])),
+                         "+"))
+
+            for command in node.commands:
+                more_code = self.__generate_code(command,
+                                                 generate_function_call,
+                                                 executor_visitor,
+                                                 is_instrumented)
+                code.extend(more_code)
+
+            code.append((None, "-"))
+
+            code.append(("return map(%s, %s)" % (self.__func_name_generator.lookup_name(map_command.mapped_identifier), \
+                                                 executor_visitor._generate_terminal(map_command.iterable_identifier, scope)),
+                         "-"))
+
+            if map_command.assignment:
+                code.append(("%s = %s(a, s)" % (self.__var_name_generator.get_name(map_command.assignment.identifier, scope), \
+                                                self.__func_name_generator.lookup_name(map_command)),
+                             ""))
+            else:
+                code.append(("%s(a, s)" % self.__func_name_generator.lookup_name(map_command),
                              ""))
 
         return code
@@ -317,7 +373,7 @@ class DoExecutorVisitor(ExecutorVisitor):
         if isinstance(terminal, StateIdentifier):
             return "s['%s']" % terminal.identifier
         elif scope is not None and isinstance(terminal, Identifier) and terminal in scope:
-            return self._variable_generator.lookup_name(terminal, scope)
+            return self._variable_generator.lookup_name(terminal, scope.find_scope(terminal))
         elif isinstance(terminal, Identifier):
             return "a['%s']" % terminal
         elif isinstance(terminal, Literal):
@@ -372,6 +428,10 @@ class DoExecutorVisitor(ExecutorVisitor):
         self._write_function("initialise", func_defs, ["config"])
         self._object_file.close()
 
+    @multimethod(Assignment)
+    def visit(self, assignment):
+        pass
+
     @multimethod(Function)
     def visit(self, function):
         pass
@@ -411,6 +471,14 @@ class DoExecutorVisitor(ExecutorVisitor):
     @multimethod(LetCommand.LetEnd)
     def visit(self, let_end):
         self.__ir.mark_let_end(let_end.let_command.expression)
+
+    @multimethod(MapCommand)
+    def visit(self, map_command):
+        self.__ir.push_map_action(map_command)
+
+    @multimethod(MapCommand.EndMap)
+    def visit(self, map_end):
+        self.__ir.mark_map_end()
 
     @multimethod(AndConditionalExpression)
     def visit(self, and_cond_expr):

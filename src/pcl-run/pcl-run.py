@@ -59,6 +59,11 @@ if __name__ == '__main__':
                     value = config_parser.get(section, config_key)
                     if replace_environ_vars:
                         value = replace_environment_variables(value)
+
+                    try:
+                        return eval(value)
+                    except Exception:
+                        pass
         except ConfigParser.NoOptionError as ex:
             raise Exception("Configuration file %s: %s" % (config_filename, ex))
         except ConfigParser.NoSectionError:

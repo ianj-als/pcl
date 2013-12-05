@@ -26,7 +26,13 @@ from pcl_lexer import tokens, PCLLexer
 from import_spec import Import
 from component import Component
 from declaration import Declaration
-from command import Command, Function, Return, IfCommand, LetCommand
+from command import Assignment, \
+     Command, \
+     Function, \
+     Return, \
+     IfCommand, \
+     LetCommand, \
+     MapCommand
 from conditional_expressions import AndConditionalExpression, \
      OrConditionalExpression, \
      XorConditionalExpression, \
@@ -387,36 +393,57 @@ def p_do_command_list(p):
     else:
         p[0] = p[1]
 
+def p_returning_do_command_list(p):
+    '''returning_do_command_list : opt_do_command_list return_command'''
+    p[1].append(p[2])
+    p[0] = p[1]
+
 def p_do_command(p):
-    '''do_command : identifier_or_qual_identifier LEFT_ARROW function
-                  | function
-                  | LET let_bindings IN function
-                  | identifier_or_qual_identifier LEFT_ARROW LET let_bindings IN function
-                  | IF conditional_expression THEN opt_do_command_list return_command ELSE opt_do_command_list return_command ENDIF
-                  | identifier_or_qual_identifier LEFT_ARROW IF conditional_expression THEN opt_do_command_list return_command ELSE opt_do_command_list return_command ENDIF'''
+    '''do_command : opt_assignment function
+                  | opt_assignment LET let_bindings IN function
+                  | opt_assignment MAP identifier_or_qual_identifier FROM identifier_or_qual_identifier DO returning_do_command_list ENDMAP
+                  | opt_assignment IF conditional_expression THEN returning_do_command_list ELSE returning_do_command_list ENDIF'''
     p[0] = list()
-    if len(p) > 10:
-        # len(p) == 12
-        p[6].append(p[7])
-        p[9].append(p[10])
-        p[0].append(IfCommand(p.parser.filename, p[1].lineno, p[1], p[4], p[6], p[9], p.lineno(11)))
-    elif len(p) > 9:
-        # len(p) == 10
-        p[4].append(p[5])
-        p[7].append(p[8])
-        p[0].append(IfCommand(p.parser.filename, p.lineno(1), None, p[2], p[4], p[7], p.lineno(9)))
-    elif len(p) > 6:
-        # len(p) == 7
-        p[0].append(LetCommand(p.parser.filename, p.lineno(1), p[1], p[4], p[6]))
-    elif len(p) > 4:
-        # len(p) == 5
-        p[0].append(LetCommand(p.parser.filename, p.lineno(1), None, p[2], p[4]))
-    elif len(p) > 3:
-        # len(p) == 4
-        p[0].append(Command(p.parser.filename, p[1].lineno, p[1], p[3]))
+    if len(p) > 8:
+        if str(p[2]).lower() == 'if':
+            # len(p) == 9
+            p[0].append(IfCommand(p.parser.filename,
+                                  p[1].lineno if p[1] else p.lineno(2),
+                                  p[1],
+                                  p[3],
+                                  p[5],
+                                  p[7],
+                                  p.lineno(8)))
+        else:
+            # len(p) == 9
+            p[0].append(MapCommand(p.parser.filename,
+                                   p[1].lineno if p[1] else p.lineno(2),
+                                   p[1],
+                                   p[3],
+                                   p[5],
+                                   p[7],
+                                   p.lineno(8)))
+    elif len(p) > 5:
+        # len(p) == 6
+        p[0].append(LetCommand(p.parser.filename,
+                               p.lineno(1) if p[1] else p.lineno(2),
+                               p[1],
+                               p[3],
+                               p[5]))
     else:
-        # len(p) == 2
-        p[0].append(Command(p.parser.filename, p[1].lineno, None, p[1]))
+        # len(p) == 3
+        p[0].append(Command(p.parser.filename,
+                            p[1].lineno if p[1] else p[2].lineno,
+                            p[1],
+                            p[2]))
+
+def p_opt_assignment(p):
+    '''opt_assignment : identifier_or_qual_identifier LEFT_ARROW
+                      | '''
+    if len(p) > 1:
+        p[0] = Assignment(p.parser.filename, p[1].lineno, p[1])
+    else:
+        p[0] = None
 
 def p_let_bindings(p):
     '''let_bindings : let_binding let_bindings
@@ -428,10 +455,13 @@ def p_let_bindings(p):
 
 def p_let_binding(p):
     '''let_binding : identifier_or_qual_identifier LEFT_ARROW function'''
-    p[0] = Command(p.parser.filename, p[1].lineno, p[1], p[3])
+    p[0] = Command(p.parser.filename,
+                   p[1].lineno,
+                   Assignment(p.parser.filename, p[1].lineno, p[1]),
+                   p[3])
 
 def p_function(p):
-    '''function : QUALIFIED_IDENTIFIER '(' opt_function_args ')' '''
+    '''function : qualified_identifier '(' opt_function_args ')' '''
     p[0] = Function(p.parser.filename, p.lineno(1), p[1], p[3])
 
 def p_opt_function_args(p):
@@ -457,8 +487,7 @@ def p_function_arg(p):
 
 def p_return_command(p):
     '''return_command : RETURN '(' ')'
-                      | RETURN function_arg
-                      | RETURN literal'''
+                      | RETURN function_arg'''
     if len(p) > 3:
         p[0] = Return(p.parser.filename, p.lineno(1))
     else:
@@ -507,7 +536,14 @@ def p_state_identifier(p):
 
 def p_identifier_or_qual_identifier(p):
     '''identifier_or_qual_identifier : IDENTIFIER
-                                     | QUALIFIED_IDENTIFIER'''
+                                     | qualified_identifier'''
+    if isinstance(p[1], Identifier):
+        p[0] = p[1]
+    else:
+        p[0] = Identifier(p.parser.filename, p.lineno(1), p[1])
+
+def p_qualified_identifier(p):
+    '''qualified_identifier : QUALIFIED_IDENTIFIER'''
     p[0] = Identifier(p.parser.filename, p.lineno(1), p[1])
 
 def p_literal(p):
@@ -528,6 +564,8 @@ recovery_tokens = (')',
                    'RETURN')
 
 def p_error(token):
+    print token
+
     if not token:
         print >> sys.stderr, "ERROR: Unexpected EOF"
     else:

@@ -10,8 +10,8 @@ elseif exists("b:current_syntax")
 endif
 
 syn keyword pclKeywords and as bottom component configuration declare do
-syn keyword pclKeywords else endif if in input inputs or output outputs
-syn keyword pclKeywords let merge new return split then top wire with xor
+syn keyword pclKeywords else endif endmap from if in input inputs or output outputs
+syn keyword pclKeywords let map merge new return split then top wire with xor
 syn keyword pclStatement component nextgroup=pclIdentifier skipwhite
 syn keyword pclImports import
 

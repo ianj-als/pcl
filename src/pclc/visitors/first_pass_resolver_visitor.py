@@ -25,7 +25,13 @@ import types
 
 from multimethod import multimethod, multimethodclass
 from parser.import_spec import Import
-from parser.command import Function, Command, Return, IfCommand, LetCommand
+from parser.command import Assignment, \
+     Function, \
+     Command, \
+     Return, \
+     IfCommand, \
+     LetCommand, \
+     MapCommand
 from parser.component import Component
 from parser.conditional_expressions import AndConditionalExpression, \
      OrConditionalExpression, \
@@ -740,6 +746,15 @@ class FirstPassResolverVisitor(ResolverVisitor):
         if isinstance(terminal, StateIdentifier) and \
            terminal in self._module.resolution_symbols['unused_configuration']:
             self._module.resolution_symbols['unused_configuration'].remove(terminal)
+        elif isinstance(terminal, Identifier):
+            if self._module.definition.is_leaf:
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown identifier %(identifier)s",
+                                 [terminal] if terminal not in self._module.definition.inputs and \
+                                               terminal not in term_cond_expr.scope \
+                                            else [],
+                                 lambda t: {'filename' : t.filename,
+                                            'lineno' : t.lineno,
+                                            'identifier' : t})
 
     @multimethod(Mapping)
     def visit(self, mapping):
@@ -802,101 +817,11 @@ class FirstPassResolverVisitor(ResolverVisitor):
         iden_expr.resolution_symbols['inputs'] = transform_fn(inputs)
         iden_expr.resolution_symbols['outputs'] = transform_fn(outputs)
 
-    @multimethod(Function)
-    def visit(self, function):
-        # Record the current scope in the entity's resolution symbols
-        function['scope'] = self._current_scope
+    @multimethod(Assignment)
+    def visit(self, assignment):
+        # Unpack the assignment identifier
+        identifier = assignment.identifier
 
-        # Get the package alias and function name
-        package_alias, name = function.name.split(".")
-
-        # The imports
-        import_symbol_dict = self._module.resolution_symbols['imports']
-
-        # Check the package alias has been imported
-        if not import_symbol_dict.has_key(Identifier(None, -1, package_alias)):
-            self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function package alias %(alias)s",
-                             [function],
-                             lambda f: {'filename' : f.filename,
-                                        'lineno' : f.lineno,
-                                        'alias' : package_alias})
-
-        # The key for the imports is an Identifier, so create an Identifier
-        # from the string package alias derived from the function call.
-        alias_identifier = Identifier(None, -1, package_alias)
-        if import_symbol_dict.has_key(alias_identifier):
-            functions = import_symbol_dict[alias_identifier]
-            if not functions.has_key(name):
-                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function %(alias)s.%(name)s",
-                                 [function],
-                                 lambda f: {'filename' : f.filename,
-                                            'lineno' : f.lineno,
-                                            'alias' : package_alias,
-                                            'name' : name})
-            else:
-                # The argument spec from the imported module
-                function_arg_spec = functions[name]
-                no_defaults = len(function_arg_spec.defaults) if function_arg_spec.defaults else 0
-                min_no_args = len(function_arg_spec.args) - no_defaults
-
-                # If there are no argument default values and no var-args, then if the
-                # the number of arguments does *not* match the function's definition
-                # then that is an error.
-                if no_defaults < 1 and not function_arg_spec.varargs:
-                    # The number of expected arguments *is* the length of the ArgSpec.args
-                    if len(function_arg_spec.args) != len(function.arguments):
-                        self._add_errors("ERROR: %(filename)s at line %(lineno)d, function %(name)s called with " \
-                                         "%(given)d arguments, expected %(required)d",
-                                         [function],
-                                         lambda f: {'filename' : f.filename,
-                                                    'lineno' : f.lineno,
-                                                    'name' : f.name,
-                                                    'given' : len(f.arguments),
-                                                    'required' : len(function_arg_spec.args)})
-                elif no_defaults > 0 or function_arg_spec.varargs:
-                    # If we have at least one default argument value or at least one var-args then
-                    # if the minimum number of arguments expected for this function is less than
-                    # the number of arguments in the function call then this is an error.
-                    if len(function.arguments) < min_no_args:
-                        self._add_errors("ERROR: %(filename)s at line %(lineno)d, function %(name)s called with " \
-                                         "%(given)d arguments, expected at least %(required)d",
-                                         [function],
-                                         lambda f: {'filename' : f.filename,
-                                                    'lineno' : f.lineno,
-                                                    'name' : f.name,
-                                                    'given' : len(f.arguments),
-                                                    'required' : min_no_args})
-
-            # Mark the import as used
-            self._module.resolution_symbols['used_imports'][alias_identifier] = (self._module.resolution_symbols['used_imports'][alias_identifier][0],
-                                                                                 True)
-
-        # Check that the arguments are either inputs, configuration or assignment
-        for argument in function.arguments:
-            if isinstance(argument, StateIdentifier):
-                if argument not in self._module.resolution_symbols['configuration']:
-                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
-                                     [argument],
-                                     lambda a: {'filename' : a.filename,
-                                                'lineno' : a.lineno,
-                                                'arg_name' : a})
-                else:
-                    # Mark the configuration as used
-                    try:
-                        self._module.resolution_symbols['unused_configuration'].remove(argument)
-                    except KeyError:
-                        # We may well have removed this state identifier already
-                        pass
-            elif isinstance(argument, Identifier):
-                if argument not in self._module.definition.inputs and \
-                   argument not in self._current_scope:
-                    self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
-                                     [argument],
-                                     lambda a: {'filename' : a.filename,
-                                                'lineno' : a.lineno,
-                                                'arg_name' : a})
-
-    def __resolve_assignment(self, identifier, assign_object):
         # Check the assigned variable is *not* an input. Inputs are immutable.
         if identifier in self._module.definition.inputs:
             self._add_errors("ERROR: %(filename)s at line %(lineno)d, attempt to write read-only input %(input)s",
@@ -923,16 +848,118 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                         'var_name' : i})
         else:
             # Record the assignment and the command
-            self._current_scope[identifier] = assign_object
+            self._current_scope[identifier] = assignment
+
+    @multimethod(Function)
+    def visit(self, function):
+        # Record the current scope in the entity's resolution symbols
+        function['scope'] = self._current_scope
+
+        # The imports
+        import_symbol_dict = self._module.resolution_symbols['imports']
+
+        # Check the package alias has been imported.
+        # The key for the imports is an Identifier, so create an Identifier
+        # from the string package alias derived from the function call.
+        alias_identifier = Identifier(None, -1, function.package_alias)
+        if import_symbol_dict.has_key(alias_identifier):
+            functions = import_symbol_dict[alias_identifier]
+            if not functions.has_key(function.name):
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function %(qual_name)s",
+                                 [function],
+                                 lambda f: {'filename' : f.filename,
+                                            'lineno' : f.lineno,
+                                            'qual_name' : f.get_qualified_name()})
+            else:
+                # The argument spec from the imported module
+                function_arg_spec = functions[function.name]
+                no_defaults = len(function_arg_spec.defaults) if function_arg_spec.defaults else 0
+                min_no_args = len(function_arg_spec.args) - no_defaults
+
+                # If there are no argument default values and no var-args, then if the
+                # the number of arguments does *not* match the function's definition
+                # then that is an error.
+                if no_defaults < 1 and not function_arg_spec.varargs:
+                    # The number of expected arguments *is* the length of the ArgSpec.args
+                    if len(function_arg_spec.args) != len(function.arguments):
+                        self._add_errors("ERROR: %(filename)s at line %(lineno)d, function %(qual_name)s called with " \
+                                         "%(given)d arguments, expected %(required)d",
+                                         [function],
+                                         lambda f: {'filename' : f.filename,
+                                                    'lineno' : f.lineno,
+                                                    'qual_name' : f.get_qualified_name(),
+                                                    'given' : len(f.arguments),
+                                                    'required' : len(function_arg_spec.args)})
+                elif no_defaults > 0 or function_arg_spec.varargs:
+                    # If we have at least one default argument value or at least one var-args then
+                    # if the minimum number of arguments expected for this function is less than
+                    # the number of arguments in the function call then this is an error.
+                    if len(function.arguments) < min_no_args:
+                        self._add_errors("ERROR: %(filename)s at line %(lineno)d, function %(qual_name)s called with " \
+                                         "%(given)d arguments, expected at least %(required)d",
+                                         [function],
+                                         lambda f: {'filename' : f.filename,
+                                                    'lineno' : f.lineno,
+                                                    'qual_name' : f.get_qualified_name(),
+                                                    'given' : len(f.arguments),
+                                                    'required' : min_no_args})
+
+            # Mark the import as used
+            self._module.resolution_symbols['used_imports'][alias_identifier] = (self._module.resolution_symbols['used_imports'][alias_identifier][0],
+                                                                                 True)
+        else:
+            self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function package alias %(alias)s",
+                             [function],
+                             lambda f: {'filename' : f.filename,
+                                        'lineno' : f.lineno,
+                                        'alias' : f.package_alias})
+
+        # Check that the arguments are either inputs, configuration or assignment
+        map(self.__resolve_argument, function.arguments)
+
+    def __resolve_argument(self, argument):
+        if isinstance(argument, StateIdentifier):
+            if argument not in self._module.resolution_symbols['configuration']:
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
+                                 [argument],
+                                 lambda a: {'filename' : a.filename,
+                                            'lineno' : a.lineno,
+                                            'arg_name' : a})
+            else:
+                # Mark the configuration as used
+                try:
+                    self._module.resolution_symbols['unused_configuration'].remove(argument)
+                except KeyError:
+                    # We may well have removed this state identifier already
+                    pass
+        elif isinstance(argument, Identifier):
+            if argument in self._module.definition.outputs:
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, output is not valid a function argument %(arg_name)s",
+                                 [argument],
+                                 lambda a: {'filename' : a.filename,
+                                            'lineno' : a.lineno,
+                                            'arg_name' : a})
+            elif self._check_unbound_fn(argument):
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unbound argument %(arg_name)s",
+                                 [argument],
+                                 lambda a: {'filename' : a.filename,
+                                            'lineno' : a.lineno,
+                                            'arg_name' : a})
+            elif argument not in self._module.definition.inputs and \
+                 argument not in self._current_scope:
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
+                                 [argument],
+                                 lambda a: {'filename' : a.filename,
+                                            'lineno' : a.lineno,
+                                            'arg_name' : a})
 
     @multimethod(Command)
     def visit(self, command):
         # Record the current scope in the entity's resolution symbols
         command['scope'] = self._current_scope
-
-        # If no assignment then we don't need to do anything.
-        if command.identifier:
-            self.__resolve_assignment(command.identifier, command)
+        self._check_unbound_fn = (lambda terminal: terminal == command.assignment.identifier) \
+                                 if command.assignment.identifier \
+                                 else lambda _: False
 
     @multimethod(Return)
     def visit(self, ret):
@@ -1014,10 +1041,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
         # Record the current scope in the entity's resolution symbols
         if_command['scope'] = self._current_scope
 
-        # Resolve the assignment if there is one
-        if if_command.identifier:
-            self.__resolve_assignment(if_command.identifier, if_command)
-
     @multimethod(IfCommand.ThenBlock)
     def visit(self, then_block):
         then_scope = SymbolTable()
@@ -1040,9 +1063,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
         # Record the current scope in the entity's resolution symbols
         let_command['scope'] = self._current_scope
 
-        if let_command.identifier:
-            self.__resolve_assignment(let_command.identifier, let_command)
-
     @multimethod(LetCommand.LetBindings)
     def visit(self, let_bindings):
         let_scope = SymbolTable()
@@ -1051,4 +1071,26 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(LetCommand.LetEnd)
     def visit(self, let_end):
+        self._current_scope = self._current_scope.get_parent()
+
+    @multimethod(MapCommand)
+    def visit(self, map_command):
+        # Record the current scope in the map command's resolution symbols
+        map_command['scope'] = self._current_scope
+
+        # The iterable identifier needs to adhere to the same rules as a function argument
+        self._check_unbound_fn = lambda _: False
+        self.__resolve_argument(map_command.iterable_identifier)
+
+        # Create the scope for the command block...
+        map_scope = SymbolTable()
+        # ...and inject the mapped identifier
+        map_scope[map_command.mapped_identifier] = map_command
+        # Push the new scope
+        self._current_scope.add_nested_scope(map_scope)
+        # Make current scope
+        self._current_scope = map_scope
+
+    @multimethod(MapCommand.EndMap)
+    def visit(self, map_end):
         self._current_scope = self._current_scope.get_parent()

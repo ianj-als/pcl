@@ -160,15 +160,7 @@ class ThirdPassResolverVisitor(SecondPassResolverVisitor):
                                             'filename' : e.filename,
                                             'lineno' : e.lineno})
         elif isinstance(terminal, Identifier):
-            if self._module.definition.is_leaf:
-                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown identifier %(identifier)s",
-                                 [terminal] if terminal not in self._module.definition.inputs and \
-                                               terminal not in term_cond_expr.scope \
-                                            else [],
-                                 lambda t: {'filename' : t.filename,
-                                            'lineno' : t.lineno,
-                                            'identifier' : t})
-            else:
+            if not self._module.definition.is_leaf:
                 self._current_if_expr.resolution_symbols['inputs'] >= (lambda s: self._add_errors("ERROR: %(filename)s at line %(lineno)d, " \
                                                                                                   "identifier %(entity)s not defined in " \
                                                                                                   "if inputs",

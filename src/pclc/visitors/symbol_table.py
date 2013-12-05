@@ -32,6 +32,15 @@ class SymbolTable(object):
     def in_current_scope(self, key):
         return key in self.__table
 
+    def find_scope(self, key):
+        scope = self
+        while scope is not None:
+            if key in scope.__table:
+                return scope
+            scope = scope.__parent
+
+        return None
+
     def __getitem__(self, key):
         return self.__table[key]
 
