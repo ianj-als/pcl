@@ -957,6 +957,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
     def visit(self, command):
         # Record the current scope in the entity's resolution symbols
         command['scope'] = self._current_scope
+        
         self._check_unbound_fn = (lambda terminal: terminal == command.assignment.identifier) \
                                  if command.assignment \
                                  else lambda _: False
@@ -1068,6 +1069,10 @@ class FirstPassResolverVisitor(ResolverVisitor):
         let_scope = SymbolTable()
         self._current_scope.add_nested_scope(let_scope)
         self._current_scope = let_scope
+
+    @multimethod(LetCommand.LetExpression)
+    def visit(self, let_expression):
+        self._check_unbound_fn = lambda _: False
 
     @multimethod(LetCommand.LetEnd)
     def visit(self, let_end):

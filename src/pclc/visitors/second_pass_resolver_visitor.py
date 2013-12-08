@@ -173,6 +173,10 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
     def visit(self, let_bindings):
         pass
 
+    @multimethod(LetCommand.LetExpression)
+    def visit(self, let_expression):
+        pass
+
     @multimethod(LetCommand.LetEnd)
     def visit(self, let_end):
         pass

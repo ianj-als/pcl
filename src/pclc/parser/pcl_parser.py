@@ -498,7 +498,7 @@ def p_let_binding(p):
 
 def p_function(p):
     '''function : qualified_identifier '(' opt_function_args ')' '''
-    p[0] = Function(p.parser.filename, p.lineno(1), p[1], p[3])
+    p[0] = Function(p.parser.filename, p[1].lineno, p[1], p[3])
 
 def p_opt_function_args(p):
     '''opt_function_args : function_arg_list

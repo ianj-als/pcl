@@ -27,7 +27,7 @@ from optparse import OptionParser
 from runner.runner import PCLImportError, execute_module
 
 
-__VERSION = "1.3.0"
+__VERSION = "1.3.1"
 
 
 if __name__ == '__main__':
@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
                     try:
                         return eval(value)
-                    except Exception:
+                    except:
                         pass
         except ConfigParser.NoOptionError as ex:
             raise Exception("Configuration file %s: %s" % (config_filename, ex))

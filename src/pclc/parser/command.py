@@ -246,6 +246,15 @@ class LetCommand(Entity, ResolutionSymbols):
             for binding in self.bindings:
                 binding.accept(visitor)
 
+    class LetExpression(Entity):
+        def __init__(self, filename, lineno, expression):
+            Entity.__init__(self, filename, lineno)
+            self.expression = expression
+
+        def accept(self, visitor):
+            visitor.visit(self)
+            self.expression.accept(visitor)
+
     class LetEnd(Entity):
         def __init__(self, filename, lineno, let_command):
             Entity.__init__(self, filename, lineno)
@@ -264,7 +273,7 @@ class LetCommand(Entity, ResolutionSymbols):
         ResolutionSymbols.__init__(self)
         self.assignment = assignment
         self.bindings = LetCommand.LetBindings(filename, bindings[0].lineno, bindings)
-        self.expression = expression
+        self.expression = LetCommand.LetExpression(filename, expression.lineno, expression)
         self.let_end = LetCommand.LetEnd(filename, expression.lineno, self)
 
     def accept(self, visitor):

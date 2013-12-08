@@ -156,9 +156,11 @@ class IntermediateRepresentation(object):
         self.__add_node(node)
         self.__current_let = node
 
-    def mark_let_end(self, let_expression_function):
+    def mark_let_expression(self, let_expression_function):
         node = IntermediateRepresentation.IRFunctionNode(let_expression_function, self.__current_node)
         self.__current_node.add_child(node)
+
+    def mark_let_end(self):
         self.__current_node = self.__current_let.parent
         self.__current_let = None
 
@@ -469,9 +471,13 @@ class DoExecutorVisitor(ExecutorVisitor):
     def visit(self, let_bindings):
         pass
 
+    @multimethod(LetCommand.LetExpression)
+    def visit(self, let_expression):
+        self.__ir.mark_let_expression(let_expression.expression)
+
     @multimethod(LetCommand.LetEnd)
     def visit(self, let_end):
-        self.__ir.mark_let_end(let_end.let_command.expression)
+        self.__ir.mark_let_end()
 
     @multimethod(MapCommand)
     def visit(self, map_command):
