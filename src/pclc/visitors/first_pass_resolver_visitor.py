@@ -958,7 +958,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
         # Record the current scope in the entity's resolution symbols
         command['scope'] = self._current_scope
         self._check_unbound_fn = (lambda terminal: terminal == command.assignment.identifier) \
-                                 if command.assignment.identifier \
+                                 if command.assignment \
                                  else lambda _: False
 
     @multimethod(Return)

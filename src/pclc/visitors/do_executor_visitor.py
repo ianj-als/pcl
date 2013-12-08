@@ -379,6 +379,7 @@ class DoExecutorVisitor(ExecutorVisitor):
         elif isinstance(terminal, Literal):
             return str(terminal)
         else:
+            print str(terminal)
             raise ValueError("Unexpected terminal in conditional: filename = %s, line no = %d" % \
                              (terminal.filename, terminal.lineno))
 

@@ -399,43 +399,79 @@ def p_returning_do_command_list(p):
     p[0] = p[1]
 
 def p_do_command(p):
-    '''do_command : opt_assignment function
-                  | opt_assignment LET let_bindings IN function
-                  | opt_assignment MAP identifier_or_qual_identifier FROM identifier_or_qual_identifier DO returning_do_command_list ENDMAP
-                  | opt_assignment IF conditional_expression THEN returning_do_command_list ELSE returning_do_command_list ENDIF'''
+    '''do_command : function
+                  | identifier_or_qual_identifier LEFT_ARROW function
+                  | LET let_bindings IN function
+                  | identifier_or_qual_identifier LEFT_ARROW LET let_bindings IN function
+                  | MAP identifier_or_qual_identifier FROM identifier_or_qual_identifier DO returning_do_command_list ENDMAP
+                  | identifier_or_qual_identifier LEFT_ARROW MAP identifier_or_qual_identifier FROM identifier_or_qual_identifier DO returning_do_command_list ENDMAP
+                  | IF conditional_expression THEN returning_do_command_list ELSE returning_do_command_list ENDIF
+                  | identifier_or_qual_identifier LEFT_ARROW IF conditional_expression THEN returning_do_command_list ELSE returning_do_command_list ENDIF'''
     p[0] = list()
-    if len(p) > 8:
-        if str(p[2]).lower() == 'if':
-            # len(p) == 9
+    if len(p) > 9:
+        # len(p) == 10
+        if str(p[3]).lower() == 'if':
             p[0].append(IfCommand(p.parser.filename,
-                                  p[1].lineno if p[1] else p.lineno(2),
-                                  p[1],
-                                  p[3],
-                                  p[5],
-                                  p[7],
-                                  p.lineno(8)))
-        else:
-            # len(p) == 9
+                                  p[1].lineno,
+                                  Assignment(p.parser.filename, p[1].lineno, p[1]),
+                                  p[4],
+                                  p[6],
+                                  p[8],
+                                  p.lineno(9)))
+        else:           
             p[0].append(MapCommand(p.parser.filename,
-                                   p[1].lineno if p[1] else p.lineno(2),
-                                   p[1],
-                                   p[3],
-                                   p[5],
-                                   p[7],
-                                   p.lineno(8)))
+                                   p[1].lineno,
+                                   Assignment(p.parser.filename, p[1].lineno, p[1]),
+                                   p[4],
+                                   p[6],
+                                   p[8],
+                                   p.lineno(9)))
+    elif len(p) > 7:
+        # len(p) == 8
+        if str(p[1]).lower() == 'if':
+            p[0].append(IfCommand(p.parser.filename,
+                                  p.lineno(1),
+                                  None,
+                                  p[2],
+                                  p[4],
+                                  p[6],
+                                  p.lineno(7)))
+        else:
+            p[0].append(MapCommand(p.parser.filename,
+                                   p.lineno(1),
+                                   None,
+                                   p[2],
+                                   p[4],
+                                   p[6],
+                                   p.lineno(7)))
+    elif len(p) > 6:
+        # len(p) == 7
+        p[0].append(LetCommand(p.parser.filename,
+                               p[1].lineno,
+                               Assignment(p.parser.filename, p[1].lineno, p[1]),
+                               p[4],
+                               p[6]))
     elif len(p) > 5:
         # len(p) == 6
         p[0].append(LetCommand(p.parser.filename,
-                               p.lineno(1) if p[1] else p.lineno(2),
-                               p[1],
-                               p[3],
-                               p[5]))
-    else:
-        # len(p) == 3
+                               p.lineno(1),
+                               None,
+                               p[2],
+                               p[4]))
+    elif len(p) > 3:
+        # a <- function()
+        # len(p) == 4
         p[0].append(Command(p.parser.filename,
-                            p[1].lineno if p[1] else p[2].lineno,
-                            p[1],
-                            p[2]))
+                            p[1].lineno,
+                            Assignment(p.parser.filename, p[1].lineno, p[1]),
+                            p[3]))
+    else:
+        # function()
+        # len(p) == 1
+        p[0].append(Command(p.parser.filename,
+                            p[1].lineno,
+                            None,
+                            p[1]))
 
 def p_opt_assignment(p):
     '''opt_assignment : identifier_or_qual_identifier LEFT_ARROW
