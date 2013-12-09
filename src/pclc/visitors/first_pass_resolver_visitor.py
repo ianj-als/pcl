@@ -940,7 +940,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                             'lineno' : a.lineno,
                                             'arg_name' : a})
             elif assignment is not None and argument == assignment.identifier:
-                self._add_errors("ERROR: %(filename)s at line %(lineno)d, unbound argument %(arg_name)s",
+                self._add_errors("ERROR: %(filename)s at line %(lineno)d, argument %(arg_name)s referenced before assignment",
                                  [argument],
                                  lambda a: {'filename' : a.filename,
                                             'lineno' : a.lineno,
