@@ -850,8 +850,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
             # Record the assignment and the command
             self._current_scope[identifier] = assignment
 
-    @multimethod(Function)
-    def visit(self, function):
+    def __resolve_function(self, function, assignment_identifier = None):
         # Record the current scope in the entity's resolution symbols
         function['scope'] = self._current_scope
 
@@ -915,9 +914,10 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                         'alias' : f.package_alias})
 
         # Check that the arguments are either inputs, configuration or assignment
-        map(self.__resolve_argument, function.arguments)
+        map_fn = lambda a: self.__resolve_argument(a, assignment_identifier)
+        map(map_fn, function.arguments)
 
-    def __resolve_argument(self, argument):
+    def __resolve_argument(self, argument, assignment = None):
         if isinstance(argument, StateIdentifier):
             if argument not in self._module.resolution_symbols['configuration']:
                 self._add_errors("ERROR: %(filename)s at line %(lineno)d, unknown function argument %(arg_name)s",
@@ -939,7 +939,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
                                  lambda a: {'filename' : a.filename,
                                             'lineno' : a.lineno,
                                             'arg_name' : a})
-            elif self._check_unbound_fn(argument):
+            elif assignment is not None and argument == assignment.identifier:
                 self._add_errors("ERROR: %(filename)s at line %(lineno)d, unbound argument %(arg_name)s",
                                  [argument],
                                  lambda a: {'filename' : a.filename,
@@ -957,10 +957,8 @@ class FirstPassResolverVisitor(ResolverVisitor):
     def visit(self, command):
         # Record the current scope in the entity's resolution symbols
         command['scope'] = self._current_scope
-        
-        self._check_unbound_fn = (lambda terminal: terminal == command.assignment.identifier) \
-                                 if command.assignment \
-                                 else lambda _: False
+        # Resolve the function
+        self.__resolve_function(command.function, command.assignment)
 
     @multimethod(Return)
     def visit(self, ret):
@@ -1072,7 +1070,7 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(LetCommand.LetExpression)
     def visit(self, let_expression):
-        self._check_unbound_fn = lambda _: False
+        pass
 
     @multimethod(LetCommand.LetEnd)
     def visit(self, let_end):
@@ -1084,7 +1082,6 @@ class FirstPassResolverVisitor(ResolverVisitor):
         map_command['scope'] = self._current_scope
 
         # The iterable identifier needs to adhere to the same rules as a function argument
-        self._check_unbound_fn = lambda _: False
         self.__resolve_argument(map_command.iterable_identifier)
 
         # Create the scope for the command block...

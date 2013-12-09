@@ -137,10 +137,6 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
     def visit(self, assignment):
         pass
 
-    @multimethod(Function)
-    def visit(self, function):
-        pass
-
     @multimethod(Command)
     def visit(self, command):
         pass

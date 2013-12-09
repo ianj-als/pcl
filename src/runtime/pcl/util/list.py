@@ -17,19 +17,19 @@
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# cons :: []
-cons = lambda *args: [a for a in args] if args else list()
+# cons :: *... -> [*]
+cons = lambda *args: list(args)
 
 # concat :: [*] -> [*] -> [*]
 concat = lambda l, m: l + m
 
-# append :: [a] -> a -> a
+# append :: [*] -> * -> [*]
 append = lambda l, x: l.append(x) or x
 
 # length :: [*] -> Int
 length = lambda l: len(l)
 
-# insert :: [a] -> Int -> a
+# insert :: [*] -> Int -> a -> a
 insert = lambda l, i, x: l.insert(int(i), x) or x
 
 # head :: [a] -> a

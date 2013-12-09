@@ -435,10 +435,6 @@ class DoExecutorVisitor(ExecutorVisitor):
     def visit(self, assignment):
         pass
 
-    @multimethod(Function)
-    def visit(self, function):
-        pass
-
     @multimethod(Command)
     def visit(self, command):
         self.__ir.push_command_action(command)

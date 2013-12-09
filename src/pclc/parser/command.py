@@ -92,7 +92,6 @@ class Command(Entity, ResolutionSymbols):
 
     def accept(self, visitor):
         visitor.visit(self)
-        self.function.accept(visitor)
         if self.assignment:
             self.assignment.accept(visitor)
 

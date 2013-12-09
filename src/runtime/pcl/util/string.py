@@ -29,4 +29,5 @@ lower = lambda s: s.__str__().lower()
 # upper :: String -> String
 upper = lambda s: s.__str__().upper()
 
-
+# length :: String -> Int
+length = lambda s: len(s.__str__())
