@@ -16,21 +16,33 @@
 # You should have received a copy of the GNU General Public License
 # along with Pipeline Creation Language (PCL).  If not, see <http://www.gnu.org/licenses/>.
 #
+import pcl.util.list as list
+import pcl.util.string as string
 
-# cons :: String -> String
-cons = lambda s = '': s.__str__()
+component map_example
+  input length
+  output list
+  do
+    l <- list.cons("abc", "def", "ghijklmnop", "qrstu", "v", "wxyz")
 
-# split :: String -> String -> [String]
-split = lambda s, ss: s.__str__().split(ss)
+    l.short <- filter l with x do
+      x.length <- string.length(x)
+      result <- if x.length < 5 then
+        return true
+      else
+        return false
+      endif
+      return result
+    endfilter
 
-# join :: [String] -> String -> String
-join = lambda l, s: s.join([str(e) for e in l])
+    l.mapped <- map x from l.short do
+      result <- string.append(x, " ")
+      return result
+    endmap
 
-# lower :: String -> String
-lower = lambda s: s.__str__().lower()
+    result <- reduce l.mapped with x from str <- string.cons() do
+      result <- string.append(str, x)
+      return result
+    endreduce
 
-# upper :: String -> String
-upper = lambda s: s.__str__().upper()
-
-# length :: String -> Int
-length = lambda s: len(s.__str__())
+    return list <- result

@@ -32,7 +32,9 @@ from command import Assignment, \
      Return, \
      IfCommand, \
      LetCommand, \
-     MapCommand
+     MapCommand, \
+     ReduceCommand, \
+     FilterCommand
 from conditional_expressions import AndConditionalExpression, \
      OrConditionalExpression, \
      XorConditionalExpression, \
@@ -406,26 +408,49 @@ def p_do_command(p):
                   | MAP identifier_or_qual_identifier FROM identifier_or_qual_identifier DO returning_do_command_list ENDMAP
                   | identifier_or_qual_identifier LEFT_ARROW MAP identifier_or_qual_identifier FROM identifier_or_qual_identifier DO returning_do_command_list ENDMAP
                   | IF conditional_expression THEN returning_do_command_list ELSE returning_do_command_list ENDIF
-                  | identifier_or_qual_identifier LEFT_ARROW IF conditional_expression THEN returning_do_command_list ELSE returning_do_command_list ENDIF'''
+                  | identifier_or_qual_identifier LEFT_ARROW IF conditional_expression THEN returning_do_command_list ELSE returning_do_command_list ENDIF
+                  | identifier_or_qual_identifier LEFT_ARROW REDUCE identifier_or_qual_identifier WITH identifier_or_qual_identifier FROM identifier_or_qual_identifier LEFT_ARROW function DO returning_do_command_list ENDREDUCE
+                  | identifier_or_qual_identifier LEFT_ARROW FILTER identifier_or_qual_identifier WITH identifier_or_qual_identifier DO returning_do_command_list ENDFILTER'''
     p[0] = list()
-    if len(p) > 9:
-        # len(p) == 10
-        if str(p[3]).lower() == 'if':
-            p[0].append(IfCommand(p.parser.filename,
+    if len(p) > 13:
+        p[0].append(ReduceCommand(p.parser.filename,
                                   p[1].lineno,
                                   Assignment(p.parser.filename, p[1].lineno, p[1]),
                                   p[4],
                                   p[6],
-                                  p[8],
-                                  p.lineno(9)))
+                                  Command(p.parser.filename,
+                                          p[8].lineno,
+                                          Assignment(p.parser.filename, p[8].lineno, p[8]),
+                                          p[10]),
+                                  p[12],
+                                  p.lineno(13)))
+    elif len(p) > 9:
+        # len(p) == 10
+        if str(p[3]).lower() == 'filter':
+            cmd = FilterCommand(p.parser.filename,
+                                p[1].lineno,
+                                Assignment(p.parser.filename, p[1].lineno, p[1]),
+                                p[4],
+                                p[6],
+                                p[8],
+                                p.lineno(9))
+        elif str(p[3]).lower() == 'if':
+            cmd = IfCommand(p.parser.filename,
+                            p[1].lineno,
+                            Assignment(p.parser.filename, p[1].lineno, p[1]),
+                            p[4],
+                            p[6],
+                            p[8],
+                            p.lineno(9))
         else:           
-            p[0].append(MapCommand(p.parser.filename,
-                                   p[1].lineno,
-                                   Assignment(p.parser.filename, p[1].lineno, p[1]),
-                                   p[4],
-                                   p[6],
-                                   p[8],
-                                   p.lineno(9)))
+            cmd = MapCommand(p.parser.filename,
+                             p[1].lineno,
+                             Assignment(p.parser.filename, p[1].lineno, p[1]),
+                             p[4],
+                             p[6],
+                             p[8],
+                             p.lineno(9))
+        p[0].append(cmd)
     elif len(p) > 7:
         # len(p) == 8
         if str(p[1]).lower() == 'if':

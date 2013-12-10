@@ -353,5 +353,122 @@ class MapCommand(Entity, ResolutionSymbols):
                (repr(self.assignment),
                 repr(self.mapped_identifier),
                 repr(self.iterable_identifier),
-                " ".join(map(lambda c: str(c), self.commands)),
+                " ".join(map(lambda c: repr(c), self.commands)),
                 super(MapCommand, self).__repr__())
+
+class ReduceCommand(Entity, ResolutionSymbols):
+    class EndReduce(Entity):
+        def __init__(self, filename, lineno, reduce_command):
+            Entity.__init__(self, filename, lineno)
+            self.reduce_command = reduce_command
+
+        def accept(self, visitor):
+            visitor.visit(self)
+
+    def __init__(self,
+                 filename,
+                 lineno,
+                 assignment,
+                 iterable_identifier,
+                 reduced_identifier,
+                 initialiser,
+                 commands,
+                 endreduce_lineno):
+        Entity.__init__(self, filename, lineno)
+        ResolutionSymbols.__init__(self)
+        self.assignment = assignment
+        self.iterable_identifier = iterable_identifier
+        self.reduced_identifier = reduced_identifier
+        self.initialiser = initialiser
+        self.commands = commands
+        self.endreduce = ReduceCommand.EndReduce(filename, endreduce_lineno, self)
+
+    def accept(self, visitor):
+        visitor.visit(self)
+        self.initialiser.accept(visitor)
+        for cmd in self.commands:
+            cmd.accept(visitor)
+        self.endreduce.accept(visitor)
+        if self.assignment:
+            self.assignment.accept(visitor)
+
+    def __str__(self):
+        l = list()
+        if self.assignment:
+            l.append(str(self.assignment))            
+        l.extend(['reduce',
+                  str(self.iterable_identifier),
+                  'with',
+                  str(self.reduced_identifier),
+                  'from',
+                  str(self.initialiser),
+                  'do',
+                  " ".join(map(lambda c: str(c), self.commands)),
+                  'endreduce'])
+
+        return " ".join(l)
+
+    def __repr__(self):
+        return "<ReduceCommand:\n\tassignment = %s\n\titerable = %s\n\treduced = %s\n\t" \
+               "initialiser = %s\n\tcommands = %s\n\tentity = %s>" % \
+               (repr(self.assignment),
+                repr(self.iterable_identifier),
+                repr(self.reduced_identifier),
+                repr(self.initialiser),
+                " ".join(map(lambda c: repr(c), self.commands)),
+                super(ReduceCommand, self).__repr__())
+
+class FilterCommand(Entity, ResolutionSymbols):
+    class EndFilter(Entity):
+        def __init__(self, filename, lineno, filter_command):
+            Entity.__init__(self, filename, lineno)
+            self.filter_command = filter_command
+
+        def accept(self, visitor):
+            visitor.visit(self)
+
+    def __init__(self,
+                 filename,
+                 lineno,
+                 assignment,
+                 iterable_identifier,
+                 filtered_identifier,
+                 commands,
+                 endfilter_lineno):
+        Entity.__init__(self, filename, lineno)
+        self.assignment = assignment
+        self.iterable_identifier = iterable_identifier
+        self.filtered_identifier = filtered_identifier
+        self.commands = commands
+        self.endfilter = FilterCommand.EndFilter(filename, endfilter_lineno, self)
+
+    def accept(self, visitor):
+        visitor.visit(self)
+        for cmd in self.commands:
+            cmd.accept(visitor)
+        self.endfilter.accept(visitor)
+        if self.assignment:
+            self.assignment.accept(visitor)
+
+    def __str__(self):
+        l = list()
+        if self.assignment:
+            l.append(str(self.assignment))
+        l.extend(['filter',
+                  str(self.iterable_identifier),
+                  'with',
+                  str(self.filtered_identifier),
+                  'do',
+                  " ".join(map(lambda c: str(c), self.commands)),
+                  'endfilter'])
+
+        return " ".join(l)
+
+    def __repr__(self):
+        return "<FilterCommand:\n\tassignment = %s\n\titerable = %s\n\t" \
+               "filtered = %s\n\tcommands = %s\n\tentity = %s>" % \
+               (repr(self.assignment),
+                repr(self.iterable_identifier),
+                repr(self.filtered_identifier),
+                " ".join(map(lambda c: repr(c), self.commands)),
+                super(FilterCommand, self).__repr__())
