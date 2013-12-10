@@ -30,7 +30,9 @@ from parser.command import Assignment, \
      Return, \
      IfCommand, \
      LetCommand, \
-     MapCommand
+     MapCommand, \
+     ReduceCommand, \
+     FilterCommand
 from parser.conditional_expressions import ConditionalExpression, \
      AndConditionalExpression, \
      OrConditionalExpression, \
@@ -482,6 +484,22 @@ class DoExecutorVisitor(ExecutorVisitor):
     @multimethod(MapCommand.EndMap)
     def visit(self, map_end):
         self.__ir.mark_map_end()
+
+    @multimethod(ReduceCommand)
+    def visit(self, reduce_command):
+        pass
+
+    @multimethod(ReduceCommand.EndReduce)
+    def visit(self, end_reduce):
+        pass
+
+    @multimethod(FilterCommand)
+    def visit(self, filter_command):
+        pass
+
+    @multimethod(FilterCommand.EndFilter)
+    def visit(self, end_filter):
+        pass
 
     @multimethod(AndConditionalExpression)
     def visit(self, and_cond_expr):

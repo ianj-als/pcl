@@ -24,7 +24,9 @@ from parser.command import Assignment, \
      Return, \
      IfCommand, \
      LetCommand, \
-     MapCommand
+     MapCommand, \
+     ReduceCommand, \
+     FilterCommand
 from parser.component import Component
 from parser.conditional_expressions import ConditionalExpression, \
      UnaryConditionalExpression, \
@@ -183,4 +185,20 @@ class SecondPassResolverVisitor(FirstPassResolverVisitor):
 
     @multimethod(MapCommand.EndMap)
     def visit(self, map_end):
+        pass
+
+    @multimethod(ReduceCommand)
+    def visit(self, reduce_command):
+        pass
+
+    @multimethod(ReduceCommand.EndReduce)
+    def visit(self, end_reduce):
+        pass
+
+    @multimethod(FilterCommand)
+    def visit(self, filter_command):
+        pass
+
+    @multimethod(FilterCommand.EndFilter)
+    def visit(self, end_filter):
         pass

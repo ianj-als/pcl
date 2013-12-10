@@ -19,7 +19,7 @@
 import pcl.util.list as list
 import pcl.util.string as string
 
-component map_example
+component map_reduce_filter
   input length
   output list
   do

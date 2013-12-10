@@ -31,7 +31,9 @@ from parser.command import Assignment, \
      Return, \
      IfCommand, \
      LetCommand, \
-     MapCommand
+     MapCommand, \
+     ReduceCommand, \
+     FilterCommand
 from parser.component import Component
 from parser.conditional_expressions import AndConditionalExpression, \
      OrConditionalExpression, \
@@ -1095,4 +1097,47 @@ class FirstPassResolverVisitor(ResolverVisitor):
 
     @multimethod(MapCommand.EndMap)
     def visit(self, map_end):
+        self._current_scope = self._current_scope.get_parent()
+
+    @multimethod(ReduceCommand)
+    def visit(self, reduce_command):
+        # Record the current scope in the reduce command's resolution symbols
+        reduce_command['scope'] = self._current_scope
+
+        # The iterable identifier needs to adhere to the same rules as a function argument
+        self.__resolve_argument(reduce_command.iterable_identifier)
+
+        # Create the scope for the command block...
+        reduce_scope = SymbolTable()
+        # ...and inject the reduced identifier
+        reduce_scope[reduce_command.reduced_identifier] = reduce_command
+        # Push the new scope
+        self._current_scope.add_nested_scope(reduce_scope)
+        # Make reduce scope the current one
+        self._current_scope = reduce_scope
+
+    @multimethod(ReduceCommand.EndReduce)
+    def visit(self, end_reduce):
+        self._current_scope = self._current_scope.get_parent()
+
+    @multimethod(FilterCommand)
+    def visit(self, filter_command):
+        # Record the current scope in the reduce command's resolution symbols
+        filter_command['scope'] = self._current_scope
+
+        # The iterable identifier needs to adhere to the same rules as a function argument
+        self.__resolve_argument(filter_command.iterable_identifier)
+
+        # Create the scope for the command block...
+        filter_scope = SymbolTable()
+        # ...and inject the filter identifier
+        filter_scope[filter_command.filtered_identifier] = filter_command
+        # Push new scope
+        self._current_scope.add_nested_scope(filter_scope)
+        # Make current scope
+        self._current_scope = filter_scope
+
+
+    @multimethod(FilterCommand.EndFilter)
+    def visit(self, end_filter):
         self._current_scope = self._current_scope.get_parent()

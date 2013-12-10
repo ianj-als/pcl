@@ -436,6 +436,7 @@ class FilterCommand(Entity, ResolutionSymbols):
                  commands,
                  endfilter_lineno):
         Entity.__init__(self, filename, lineno)
+        ResolutionSymbols.__init__(self)
         self.assignment = assignment
         self.iterable_identifier = iterable_identifier
         self.filtered_identifier = filtered_identifier

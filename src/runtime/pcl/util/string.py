@@ -18,19 +18,22 @@
 #
 
 # cons :: String -> String
-cons = lambda s = '': s.__str__()
+cons = lambda s = '': str(s)
 
 # split :: String -> String -> [String]
-split = lambda s, ss: s.__str__().split(ss)
+split = lambda s, ss: str(s).split(ss)
 
 # join :: [String] -> String -> String
 join = lambda l, s: s.join([str(e) for e in l])
 
 # lower :: String -> String
-lower = lambda s: s.__str__().lower()
+lower = lambda s: str(s).lower()
 
 # upper :: String -> String
-upper = lambda s: s.__str__().upper()
+upper = lambda s: str(s).upper()
 
 # length :: String -> Int
-length = lambda s: len(s.__str__())
+length = lambda s: len(str(s))
+
+# append :: String -> String - String
+append = lambda s, append_s: str(s) + str(append_s)
