@@ -148,9 +148,7 @@ class PCLExecutorVisitor(ExecutorVisitor):
                                                                (cm.to, \
                                                                 "config['%s']" % cm.from_ \
                                                                 if isinstance(cm.from_, Identifier) \
-                                                                else cm.from_.value.__repr__() \
-                                                                if isinstance(cm.from_.value, str) \
-                                                                else m.literal) \
+                                                                else cm.from_.value.__repr__() )
                                                                 for cm in decl.configuration_mappings]))) \
                                          for decl in self._module.resolution_symbols['components']]
         # The initialise function
@@ -171,9 +169,7 @@ class PCLExecutorVisitor(ExecutorVisitor):
                                                         (cm.to, \
                                                         "s['%s']" % cm.from_ \
                                                         if isinstance(cm.from_, Identifier) \
-                                                        else cm.from_.value.__repr__() \
-                                                        if isinstance(cm.from_.value, str) \
-                                                        else m.literal) \
+                                                        else cm.from_.value.__repr__())
                                                         for cm in decl.configuration_mappings]))} if decl.configuration_mappings else ""
                           for decl in self._module.resolution_symbols['components']]
         # Do we generate instrumented code?
